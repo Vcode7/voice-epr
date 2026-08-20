@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Mic,
+  FileSpreadsheet,
   History,
   Receipt,
   PieChart,
@@ -15,6 +16,7 @@ import {
 
 const NAV_ITEMS = [
   { name: 'Voice Studio', href: '/', icon: Mic },
+  { name: 'Voice to Data', href: '/voice-data', icon: FileSpreadsheet },
   { name: 'History & Logs', href: '/history', icon: History },
   { name: 'Voice Invoices', href: '/invoices', icon: Receipt },
   { name: 'Analytics & Budgets', href: '/analytics', icon: PieChart },

@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Plus, Trash2, Save, Printer, Table, CheckCircle } from 'lucide-react';
-import { DataTemplate, DataEntryRecord, FlexibleExtractedResult, ExtractedDataResult, FlexibleField } from '@/types';
+import { X, Plus, Trash2, Save, Printer, Table, CheckCircle, Edit3 } from 'lucide-react';
+import { DataTemplate, DataEntryRecord, FlexibleExtractedResult, ExtractedDataResult, FlexibleField, TemplateField } from '@/types';
 import { getTodayString } from '@/lib/utils/dateUtils';
 import { DEFAULT_MONITORING_DETAILS_TEMPLATE } from '@/lib/constants';
 
@@ -11,6 +11,7 @@ interface DataEntryEditModalProps {
   flexibleData?: FlexibleExtractedResult;
   existingRecord?: DataEntryRecord;
   template?: DataTemplate;
+  isManual?: boolean;
   onClose: () => void;
   onSaved: () => void;
 }
@@ -20,6 +21,7 @@ export function DataEntryEditModal({
   flexibleData,
   existingRecord,
   template = DEFAULT_MONITORING_DETAILS_TEMPLATE,
+  isManual = false,
   onClose,
   onSaved,
 }: DataEntryEditModalProps) {
@@ -27,31 +29,52 @@ export function DataEntryEditModal({
 
   // Flexible state
   const [flexibleTitle, setFlexibleTitle] = useState(
-    existingRecord?.title || flexibleData?.title || 'Flexible Voice Record'
+    existingRecord?.title || flexibleData?.title || (isManual ? 'Manual Data Entry' : 'Flexible Voice Record')
   );
   const [flexibleFields, setFlexibleFields] = useState<FlexibleField[]>(
     existingRecord?.flexibleFields ||
       flexibleData?.fields || [
-        { id: '1', name: 'Item', value: 'Value' },
+        { id: '1', name: 'Item Name', value: '' },
+        { id: '2', name: 'Batch / Code', value: '' },
       ]
   );
   const [flexibleTableTitle, setFlexibleTableTitle] = useState(
     existingRecord?.tableTitle || flexibleData?.table?.title || 'Detected Data Table'
   );
   const [flexibleTableHeaders, setFlexibleTableHeaders] = useState<string[]>(
-    existingRecord?.tableHeaders || flexibleData?.table?.headers || []
+    existingRecord?.tableHeaders || flexibleData?.table?.headers || ['Time Interval', 'Produced Qty', 'Status']
   );
   const [flexibleTableRows, setFlexibleTableRows] = useState<string[][]>(
-    (existingRecord?.tableRows as string[][]) || flexibleData?.table?.rows || []
+    (existingRecord?.tableRows as string[][]) || flexibleData?.table?.rows || [['', '', '']]
   );
 
   // Template-based state
-  const [fieldValues, setFieldValues] = useState<Record<string, any>>(
-    existingRecord?.fieldValues || extractedData?.fieldValues || {}
-  );
-  const [tableRows, setTableRows] = useState<Array<Record<string, any>>>(
-    (existingRecord?.tableRows as Array<Record<string, any>>) || extractedData?.tableRows || []
-  );
+  const [fieldValues, setFieldValues] = useState<Record<string, any>>(() => {
+    if (existingRecord?.fieldValues) return existingRecord.fieldValues;
+    if (extractedData?.fieldValues) return extractedData.fieldValues;
+    const initial: Record<string, any> = {};
+    (template.fields || []).forEach((f) => {
+      initial[f.extractionKey] = f.defaultValue ?? (f.type === 'boolean' ? false : '');
+    });
+    return initial;
+  });
+
+  const [tableRows, setTableRows] = useState<Array<Record<string, any>>>(() => {
+    if (existingRecord?.tableRows && Array.isArray(existingRecord.tableRows)) {
+      return existingRecord.tableRows as Array<Record<string, any>>;
+    }
+    if (extractedData?.tableRows && Array.isArray(extractedData.tableRows)) {
+      return extractedData.tableRows;
+    }
+    if (template.hasTable && template.tableFields && template.tableFields.length > 0) {
+      const emptyRow: Record<string, any> = {};
+      template.tableFields.forEach((c) => {
+        emptyRow[c.extractionKey] = c.type === 'boolean' ? false : '';
+      });
+      return [emptyRow];
+    }
+    return [];
+  });
 
   const [date, setDate] = useState(existingRecord?.date || getTodayString());
   const [saving, setSaving] = useState(false);
@@ -105,7 +128,7 @@ export function DataEntryEditModal({
   const addTemplateTableRow = () => {
     const emptyRow: Record<string, any> = {};
     (template.tableFields || []).forEach((c) => {
-      emptyRow[c.extractionKey] = '';
+      emptyRow[c.extractionKey] = c.type === 'boolean' ? false : '';
     });
     setTableRows((prev) => [...prev, emptyRow]);
   };
@@ -138,7 +161,7 @@ export function DataEntryEditModal({
         tableTitle: isFlexible ? flexibleTableTitle : template.tableTitle,
         tableHeaders: isFlexible ? flexibleTableHeaders : template.tableFields.map((c) => c.name),
         tableRows: isFlexible ? flexibleTableRows : tableRows,
-        rawTranscript: flexibleData?.raw_transcript || extractedData?.raw_transcript || existingRecord?.rawTranscript || null,
+        rawTranscript: flexibleData?.raw_transcript || extractedData?.raw_transcript || existingRecord?.rawTranscript || (isManual ? '[Manual Entry]' : null),
         date,
       };
 
@@ -165,6 +188,59 @@ export function DataEntryEditModal({
     }
   };
 
+  const renderFieldInput = (f: TemplateField) => {
+    const val = fieldValues[f.extractionKey];
+
+    if (f.type === 'select') {
+      return (
+        <select
+          value={val ?? ''}
+          onChange={(e) => updateTemplateField(f.extractionKey, e.target.value)}
+          className="w-full px-3 py-2 rounded-xl bg-background border border-cardBorder text-xs text-text focus:outline-none focus:border-cyan-500 font-medium"
+        >
+          <option value="" className="bg-slate-900 text-textSubtle">
+            Select {f.name}...
+          </option>
+          {(f.options || []).map((opt) => (
+            <option key={opt} value={opt} className="bg-slate-900 text-text">
+              {opt}
+            </option>
+          ))}
+        </select>
+      );
+    }
+
+    if (f.type === 'boolean') {
+      const isChecked = val === true || val === 'true' || val === 'yes' || val === '1';
+      return (
+        <div className="flex items-center space-x-2 pt-1">
+          <button
+            type="button"
+            onClick={() => updateTemplateField(f.extractionKey, !isChecked)}
+            className={`px-4 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+              isChecked
+                ? 'bg-secondary/20 text-secondary border border-secondary/40'
+                : 'bg-slate-900 text-textMuted border border-cardBorder'
+            }`}
+          >
+            <span className={`w-2 h-2 rounded-full ${isChecked ? 'bg-secondary' : 'bg-slate-600'}`} />
+            <span>{isChecked ? 'Yes / Passed' : 'No / Failed'}</span>
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <input
+        type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : f.type === 'time' ? 'time' : 'text'}
+        value={val ?? ''}
+        onChange={(e) => updateTemplateField(f.extractionKey, e.target.value)}
+        placeholder={f.placeholder || `Enter ${f.name}`}
+        className="w-full px-3 py-2 rounded-xl bg-background border border-cardBorder text-xs text-text focus:outline-none focus:border-cyan-500 font-medium"
+      />
+    );
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
       <div className="bg-card border border-cardBorder rounded-t-2xl sm:rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
@@ -172,11 +248,23 @@ export function DataEntryEditModal({
         <div className="p-4 sm:p-6 border-b border-cardBorder flex items-center justify-between bg-slate-900/50 no-print">
           <div>
             <h2 className="text-base sm:text-xl font-bold text-text flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-dataColor" />
-              {isFlexible ? 'Voice Data Entry' : `EPR: ${template.name}`}
+              {isManual ? (
+                <Edit3 className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
+              ) : (
+                <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
+              )}
+              {isManual
+                ? isFlexible
+                  ? 'Manual Data Entry'
+                  : `Manual Entry: ${template.name}`
+                : isFlexible
+                ? 'Voice Data Entry'
+                : `EPR: ${template.name}`}
             </h2>
             <p className="text-[11px] sm:text-xs text-textMuted mt-0.5">
-              Review extracted attributes and production table logs.
+              {isManual
+                ? 'Fill out template attributes and log repeated records manually.'
+                : 'Review extracted attributes and production table logs.'}
             </p>
           </div>
           <button onClick={onClose} className="p-1.5 sm:p-2 rounded-xl text-textMuted hover:text-text hover:bg-slate-800 transition">
@@ -203,7 +291,7 @@ export function DataEntryEditModal({
                 value={isFlexible ? flexibleTitle : template.name}
                 onChange={(e) => isFlexible && setFlexibleTitle(e.target.value)}
                 disabled={!isFlexible}
-                className="w-full px-3 py-2 rounded-xl bg-background border border-cardBorder text-xs sm:text-sm text-text font-semibold focus:outline-none focus:border-primary disabled:opacity-75"
+                className="w-full px-3 py-2 rounded-xl bg-background border border-cardBorder text-xs sm:text-sm text-text font-semibold focus:outline-none focus:border-cyan-500 disabled:opacity-75"
               />
             </div>
 
@@ -215,7 +303,7 @@ export function DataEntryEditModal({
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-background border border-cardBorder text-xs sm:text-sm text-text focus:outline-none focus:border-primary"
+                className="w-full px-3 py-2 rounded-xl bg-background border border-cardBorder text-xs sm:text-sm text-text focus:outline-none focus:border-cyan-500"
               />
             </div>
           </div>
@@ -224,12 +312,12 @@ export function DataEntryEditModal({
           <div>
             <div className="flex items-center justify-between mb-2 sm:mb-3">
               <h3 className="text-xs font-bold text-text uppercase tracking-wider">
-                Extracted Fields
+                {isFlexible ? 'Flexible Attributes' : 'Template Fields'}
               </h3>
               {isFlexible && (
                 <button
                   onClick={addFlexibleField}
-                  className="text-xs text-primary hover:underline flex items-center gap-1 font-semibold no-print"
+                  className="text-xs text-cyan-400 hover:underline flex items-center gap-1 font-semibold no-print cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   Add Field
@@ -246,7 +334,7 @@ export function DataEntryEditModal({
                           type="text"
                           value={f.name}
                           onChange={(e) => updateFlexibleField(idx, 'name', e.target.value)}
-                          className="text-[10px] sm:text-[11px] font-bold uppercase text-textSubtle bg-transparent border-b border-transparent hover:border-cardBorder focus:border-primary focus:outline-none w-3/4"
+                          className="text-[10px] sm:text-[11px] font-bold uppercase text-textSubtle bg-transparent border-b border-transparent hover:border-cardBorder focus:border-cyan-500 focus:outline-none w-3/4"
                         />
                         {flexibleFields.length > 1 && (
                           <button
@@ -261,22 +349,17 @@ export function DataEntryEditModal({
                         type="text"
                         value={String(f.value ?? '')}
                         onChange={(e) => updateFlexibleField(idx, 'value', e.target.value)}
-                        className="w-full px-3 py-1.5 rounded-lg bg-background border border-cardBorder text-xs text-text focus:outline-none focus:border-primary"
+                        placeholder="Enter value..."
+                        className="w-full px-3 py-2 rounded-lg bg-background border border-cardBorder text-xs text-text focus:outline-none focus:border-cyan-500 font-medium"
                       />
                     </div>
                   ))
                 : template.fields.map((f) => (
-                    <div key={f.id} className="p-3 rounded-xl bg-slate-900/50 border border-cardBorder space-y-1">
+                    <div key={f.id} className="p-3.5 rounded-xl bg-slate-900/50 border border-cardBorder space-y-1.5">
                       <label className="block text-[10px] sm:text-[11px] font-bold uppercase text-textSubtle truncate">
-                        {f.name} <span className="text-[10px] lowercase text-textSubtle/60">({f.extractionKey})</span>
+                        {f.name} <span className="text-[10px] lowercase text-textSubtle/60">({f.type})</span>
                       </label>
-                      <input
-                        type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : 'text'}
-                        value={fieldValues[f.extractionKey] ?? ''}
-                        onChange={(e) => updateTemplateField(f.extractionKey, e.target.value)}
-                        placeholder={f.placeholder || `Enter ${f.name}`}
-                        className="w-full px-3 py-1.5 rounded-lg bg-background border border-cardBorder text-xs text-text focus:outline-none focus:border-primary"
-                      />
+                      {renderFieldInput(f)}
                     </div>
                   ))}
             </div>
@@ -284,15 +367,15 @@ export function DataEntryEditModal({
 
           {/* Repeated Entries Table */}
           {((isFlexible && flexibleTableHeaders.length > 0) || (!isFlexible && template.hasTable)) && (
-            <div className="space-y-2 sm:space-y-3">
+            <div className="space-y-2 sm:space-y-3 pt-2">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-bold text-text uppercase tracking-wider flex items-center gap-1.5">
-                  <Table className="w-4 h-4 text-dataColor" />
-                  {isFlexible ? flexibleTableTitle : template.tableTitle || 'Repeated Logs'}
+                  <Table className="w-4 h-4 text-cyan-400" />
+                  {isFlexible ? flexibleTableTitle : template.tableTitle || 'Repeated Logs Table'}
                 </h3>
                 <button
                   onClick={isFlexible ? addFlexibleTableRow : addTemplateTableRow}
-                  className="text-xs text-dataColor hover:underline flex items-center gap-1 font-semibold no-print"
+                  className="text-xs text-cyan-400 hover:underline flex items-center gap-1 font-semibold no-print cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   Add Row
@@ -312,7 +395,7 @@ export function DataEntryEditModal({
                           ))
                         : (template.tableFields || []).map((col) => (
                             <th key={col.id} className="p-2.5 sm:p-3">
-                              {col.name}
+                              {col.name} <span className="text-[9px] lowercase text-textSubtle">({col.type})</span>
                             </th>
                           ))}
                       <th className="p-2.5 sm:p-3 w-8 text-center no-print"></th>
@@ -322,21 +405,21 @@ export function DataEntryEditModal({
                     {isFlexible
                       ? flexibleTableRows.map((row, rowIdx) => (
                           <tr key={rowIdx} className="hover:bg-slate-800/30 transition">
-                            <td className="p-2.5 sm:p-3 text-textSubtle">{rowIdx + 1}</td>
+                            <td className="p-2.5 sm:p-3 text-textSubtle font-medium">{rowIdx + 1}</td>
                             {flexibleTableHeaders.map((_, colIdx) => (
                               <td key={colIdx} className="p-1.5 sm:p-2">
                                 <input
                                   type="text"
                                   value={row[colIdx] ?? ''}
                                   onChange={(e) => updateFlexibleTableCell(rowIdx, colIdx, e.target.value)}
-                                  className="w-full px-2 py-1 rounded bg-background border border-cardBorder text-xs text-text focus:outline-none focus:border-dataColor"
+                                  className="w-full px-2.5 py-1.5 rounded-lg bg-background border border-cardBorder text-xs text-text focus:outline-none focus:border-cyan-500 font-medium"
                                 />
                               </td>
                             ))}
                             <td className="p-1.5 sm:p-2 text-center no-print">
                               <button
                                 onClick={() => deleteFlexibleTableRow(rowIdx)}
-                                className="text-textSubtle hover:text-danger p-1"
+                                className="text-textSubtle hover:text-danger p-1 cursor-pointer"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -345,21 +428,42 @@ export function DataEntryEditModal({
                         ))
                       : tableRows.map((row, rowIdx) => (
                           <tr key={rowIdx} className="hover:bg-slate-800/30 transition">
-                            <td className="p-2.5 sm:p-3 text-textSubtle">{rowIdx + 1}</td>
+                            <td className="p-2.5 sm:p-3 text-textSubtle font-medium">{rowIdx + 1}</td>
                             {(template.tableFields || []).map((col) => (
                               <td key={col.id} className="p-1.5 sm:p-2">
-                                <input
-                                  type={col.type === 'number' ? 'number' : 'text'}
-                                  value={row[col.extractionKey] ?? ''}
-                                  onChange={(e) => updateTemplateTableCell(rowIdx, col.extractionKey, e.target.value)}
-                                  className="w-full px-2 py-1 rounded bg-background border border-cardBorder text-xs text-text focus:outline-none focus:border-dataColor"
-                                />
+                                {col.type === 'boolean' ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      updateTemplateTableCell(
+                                        rowIdx,
+                                        col.extractionKey,
+                                        !(row[col.extractionKey] === true || row[col.extractionKey] === 'true')
+                                      )
+                                    }
+                                    className={`px-2.5 py-1 rounded text-[11px] font-bold ${
+                                      row[col.extractionKey] === true || row[col.extractionKey] === 'true'
+                                        ? 'bg-secondary/20 text-secondary'
+                                        : 'bg-slate-800 text-textMuted'
+                                    }`}
+                                  >
+                                    {row[col.extractionKey] === true || row[col.extractionKey] === 'true' ? 'Yes' : 'No'}
+                                  </button>
+                                ) : (
+                                  <input
+                                    type={col.type === 'number' ? 'number' : col.type === 'date' ? 'date' : col.type === 'time' ? 'time' : 'text'}
+                                    value={row[col.extractionKey] ?? ''}
+                                    onChange={(e) => updateTemplateTableCell(rowIdx, col.extractionKey, e.target.value)}
+                                    placeholder={col.placeholder || col.name}
+                                    className="w-full px-2.5 py-1.5 rounded-lg bg-background border border-cardBorder text-xs text-text focus:outline-none focus:border-cyan-500 font-medium"
+                                  />
+                                )}
                               </td>
                             ))}
                             <td className="p-1.5 sm:p-2 text-center no-print">
                               <button
                                 onClick={() => deleteTemplateTableRow(rowIdx)}
-                                className="text-textSubtle hover:text-danger p-1"
+                                className="text-textSubtle hover:text-danger p-1 cursor-pointer"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -380,7 +484,7 @@ export function DataEntryEditModal({
             onClick={onClose}
             className="px-4 py-2 rounded-xl border border-cardBorder text-textMuted hover:text-text hover:bg-slate-800 text-xs font-semibold transition"
           >
-            Close
+            Cancel
           </button>
 
           <div className="flex items-center space-x-2 sm:space-x-3">
@@ -401,7 +505,7 @@ export function DataEntryEditModal({
               className="px-4 sm:px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-dataColor hover:from-dataColor hover:to-cyan-400 text-slate-950 font-bold text-xs shadow-lg shadow-dataColor/20 flex items-center gap-1.5 transition disabled:opacity-50 cursor-pointer"
             >
               <Save className="w-3.5 h-3.5" />
-              <span>{saving ? 'Saving...' : 'Save'}</span>
+              <span>{saving ? 'Saving...' : 'Save Record'}</span>
             </button>
           </div>
         </div>

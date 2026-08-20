@@ -18,7 +18,7 @@ export default function TabLayout() {
           paddingTop: 8,
         },
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: '600',
         },
       }}
@@ -28,6 +28,15 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color, size }) => <Ionicons name="mic" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="voice-data"
+        options={{
+          title: 'Voice to Data',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="document-text" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen

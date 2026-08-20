@@ -10,6 +10,7 @@ import {
   Settings2,
   Loader2,
   AlertCircle,
+  Edit3,
 } from 'lucide-react';
 import { useWebAudioRecorder } from '@/hooks/useWebAudioRecorder';
 import { AudioVisualizer } from './AudioVisualizer';
@@ -39,6 +40,7 @@ export function VoiceRecordingStudio({
   const [receiptData, setReceiptData] = useState<ExtractedReceiptResult | null>(null);
   const [templateEprData, setTemplateEprData] = useState<ExtractedDataResult | null>(null);
   const [flexibleEprData, setFlexibleEprData] = useState<FlexibleExtractedResult | null>(null);
+  const [isManualDataEntry, setIsManualDataEntry] = useState(false);
 
   const recorder = useWebAudioRecorder();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -262,6 +264,20 @@ export function VoiceRecordingStudio({
             </p>
           </div>
 
+          {/* Manual Entry Button if in Data Mode */}
+          {mode === 'data' && (
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={() => setIsManualDataEntry(true)}
+                className="px-4 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-cardBorder text-text text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer hover:border-cyan-500/50 shadow-sm"
+              >
+                <Edit3 className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Enter Manually Without Voice</span>
+              </button>
+            </div>
+          )}
+
           {recorder.errorMessage && (
             <div className="p-2.5 sm:p-3 rounded-xl bg-danger/15 border border-danger/30 text-danger text-xs flex items-center gap-2 max-w-md">
               <AlertCircle className="w-4 h-4 shrink-0" />
@@ -336,6 +352,19 @@ export function VoiceRecordingStudio({
           onClose={() => setFlexibleEprData(null)}
           onSaved={() => {
             setFlexibleEprData(null);
+            onRefreshData();
+          }}
+        />
+      )}
+
+      {isManualDataEntry && (
+        <DataEntryEditModal
+          isManual={true}
+          template={activeTemplate}
+          flexibleData={voiceDataMode === 'flexible' ? { isFlexible: true, title: 'Manual Flexible Record', fields: [], raw_transcript: '[Manual Entry]' } : undefined}
+          onClose={() => setIsManualDataEntry(false)}
+          onSaved={() => {
+            setIsManualDataEntry(false);
             onRefreshData();
           }}
         />
