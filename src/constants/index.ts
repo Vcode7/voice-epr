@@ -67,6 +67,14 @@ export const DEFAULT_SETTINGS: UserSettings = {
   businessAddress: '123 Market Street, Main City',
   gstin: '22AAAAA0000A1Z5',
   receiptPrefix: 'INV-',
+  invoiceFormat: 'standard',
+  bankDetails: {
+    bankName: 'HDFC Bank',
+    accountHolder: 'My Enterprise / Shop',
+    accountNumber: '50200012345678',
+    ifsc: 'HDFC0001234',
+    branch: 'Main City Branch',
+  },
 };
 
 export const DEFAULT_MONITORING_DETAILS_TEMPLATE: DataTemplate = {

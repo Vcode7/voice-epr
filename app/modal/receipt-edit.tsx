@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,9 +10,9 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { ExtractedReceiptResult, ReceiptItem } from '../../src/types';
+import { ExtractedReceiptResult, ReceiptItem, InvoiceFormatType, UserSettings } from '../../src/types';
 import { COLORS } from '../../src/constants';
-import { receiptRepository } from '../../src/repositories';
+import { receiptRepository, settingsRepository } from '../../src/repositories';
 import { formatCurrency } from '../../src/utils/currencyFormatter';
 import { getTodayString } from '../../src/utils/dateUtils';
 import { PdfGeneratorService } from '../../src/services/pdf/pdfService';
@@ -21,10 +21,12 @@ export default function ReceiptEditModal() {
   const params = useLocalSearchParams<{ extractedJson: string }>();
 
   let initialItems: ReceiptItem[] = [
-    { id: '1', name: 'Rice', quantity: 2, unit: 'kg', unitPrice: 100, lineTotal: 200 },
+    { id: '1', name: 'Rice', hsnCode: '1006', quantity: 2, unit: 'kg', unitPrice: 100, lineTotal: 200 },
   ];
   let initialCustomer = '';
   let initialPhone = '';
+  let initialAddress = '';
+  let initialGstin = '';
   let initialDiscount = 0;
   let initialTaxPercent = 0;
   let initialTaxType: 'gst' | 'igst' | 'none' = 'none';
@@ -36,6 +38,8 @@ export default function ReceiptEditModal() {
       rawTranscript = parsed.raw_transcript || '';
       initialCustomer = parsed.customer_name || '';
       initialPhone = parsed.customer_phone || '';
+      initialAddress = parsed.customer_address || '';
+      initialGstin = parsed.customer_gstin || '';
       initialDiscount = parsed.discount || 0;
       initialTaxPercent = parsed.tax_percent || 0;
       initialTaxType = (parsed.tax_type as 'gst' | 'igst' | 'none') || 'none';
@@ -44,6 +48,7 @@ export default function ReceiptEditModal() {
         initialItems = parsed.items.map((item, idx) => ({
           id: `item_${Date.now()}_${idx}`,
           name: item.name,
+          hsnCode: item.hsn_code || '',
           quantity: item.quantity || 1,
           unit: item.unit || 'pcs',
           unitPrice: item.unit_price || 0,
@@ -55,16 +60,27 @@ export default function ReceiptEditModal() {
 
   const [customerName, setCustomerName] = useState<string>(initialCustomer);
   const [customerPhone, setCustomerPhone] = useState<string>(initialPhone);
+  const [customerAddress, setCustomerAddress] = useState<string>(initialAddress);
+  const [customerGstin, setCustomerGstin] = useState<string>(initialGstin);
   const [discountStr, setDiscountStr] = useState<string>(initialDiscount.toString());
   const [taxPercentStr, setTaxPercentStr] = useState<string>(initialTaxPercent.toString());
   const [taxType, setTaxType] = useState<'gst' | 'igst' | 'none'>(initialTaxType);
+  const [format, setFormat] = useState<InvoiceFormatType>('standard');
+  const [notes, setNotes] = useState<string>('');
   const [items, setItems] = useState<ReceiptItem[]>(initialItems);
+
+  useEffect(() => {
+    settingsRepository.getSettings().then((s: UserSettings) => {
+      if (s?.invoiceFormat) setFormat(s.invoiceFormat);
+    }).catch(() => {});
+  }, []);
 
   // --- GST-aware Arithmetic ---
   const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
   const discount = parseFloat(discountStr) || 0;
   const taxPercent = parseFloat(taxPercentStr) || 0;
-  const taxAmount = Math.round(subtotal * taxPercent) / 100;
+  const taxableAmount = Math.max(0, subtotal - discount);
+  const taxAmount = Math.round(taxableAmount * taxPercent) / 100;
   // CGST + SGST split equally when taxType === 'gst'; IGST is full when taxType === 'igst'
   const cgst = taxType === 'gst' ? Math.round(taxAmount / 2 * 100) / 100 : 0;
   const sgst = taxType === 'gst' ? Math.round(taxAmount / 2 * 100) / 100 : 0;
@@ -92,6 +108,7 @@ export default function ReceiptEditModal() {
       {
         id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
         name: 'New Item',
+        hsnCode: '',
         quantity: 1,
         unit: 'pcs',
         unitPrice: 50,
@@ -116,6 +133,8 @@ export default function ReceiptEditModal() {
         date: getTodayString(),
         customerName: customerName.trim() || null,
         customerPhone: customerPhone.trim() || null,
+        customerAddress: customerAddress.trim() || null,
+        customerGstin: customerGstin.trim() || null,
         items,
         subtotal,
         discount,
@@ -127,12 +146,14 @@ export default function ReceiptEditModal() {
         igst,
         grandTotal,
         currency: 'INR',
+        notes: notes.trim() || null,
+        format,
         transcript: rawTranscript,
       });
 
       Alert.alert(
         'Invoice Saved!',
-        `Receipt ${newReceipt.receiptNumber} saved successfully. Would you like to share PDF?`,
+        `Receipt ${newReceipt.receiptNumber} (${format === 'basic_tax' ? 'Basic Tax A4' : 'Standard'}) saved successfully. Would you like to share PDF?`,
         [
           { text: 'Done', onPress: () => router.back() },
           {
@@ -160,16 +181,19 @@ export default function ReceiptEditModal() {
         <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
           <Ionicons name="close" size={24} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Invoice & Receipt Editor</Text>
+        <Text style={styles.headerTitle}>Professional Tax Invoice</Text>
         <TouchableOpacity onPress={handleSaveReceipt} style={styles.saveHeaderBtn}>
           <Text style={styles.saveHeaderText}>Save</Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Customer Information */}
+        {/* Bill To Customer Information */}
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Customer Info (Optional)</Text>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Bill To (Customer Details)</Text>
+            <Ionicons name="person-outline" size={16} color={COLORS.primary} />
+          </View>
           <TextInput
             style={styles.input}
             value={customerName}
@@ -181,16 +205,65 @@ export default function ReceiptEditModal() {
             style={[styles.input, { marginTop: 10 }]}
             value={customerPhone}
             onChangeText={setCustomerPhone}
-            placeholder="Customer Phone (e.g. +91 9876543210)"
+            placeholder="Phone Number (e.g. +91 9876543210)"
             keyboardType="phone-pad"
+            placeholderTextColor={COLORS.textSubtle}
+          />
+          <TextInput
+            style={[styles.input, { marginTop: 10 }]}
+            value={customerGstin}
+            onChangeText={setCustomerGstin}
+            placeholder="Customer GSTIN / Tax ID (e.g. 29ABCDE1234F1Z5)"
+            autoCapitalize="characters"
+            placeholderTextColor={COLORS.textSubtle}
+          />
+          <TextInput
+            style={[styles.input, { marginTop: 10 }]}
+            value={customerAddress}
+            onChangeText={setCustomerAddress}
+            placeholder="Customer Billing Address (e.g. Industrial Area, City)"
             placeholderTextColor={COLORS.textSubtle}
           />
         </View>
 
-        {/* Line Items List */}
+        {/* Invoice Format Selector */}
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Invoice Output Format</Text>
+          <View style={styles.formatRow}>
+            <TouchableOpacity
+              style={[styles.formatBtn, format === 'standard' && styles.formatBtnActive]}
+              onPress={() => setFormat('standard')}
+            >
+              <Ionicons
+                name="color-palette-outline"
+                size={16}
+                color={format === 'standard' ? COLORS.primary : COLORS.textMuted}
+              />
+              <Text style={[styles.formatBtnText, format === 'standard' && styles.formatBtnTextActive]}>
+                Standard Modern
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.formatBtn, format === 'basic_tax' && styles.formatBtnActive]}
+              onPress={() => setFormat('basic_tax')}
+            >
+              <Ionicons
+                name="document-text-outline"
+                size={16}
+                color={format === 'basic_tax' ? COLORS.primary : COLORS.textMuted}
+              />
+              <Text style={[styles.formatBtnText, format === 'basic_tax' && styles.formatBtnTextActive]}>
+                Basic Tax (A4 B&W)
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Line Items List with HSN/SAC */}
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Invoice Items</Text>
+            <Text style={styles.sectionTitle}>Invoice Line Items ({items.length})</Text>
             <TouchableOpacity style={styles.addItemBtn} onPress={handleAddItem}>
               <Ionicons name="add" size={16} color="#FFFFFF" />
               <Text style={styles.addItemText}>Add Item</Text>
@@ -205,7 +278,7 @@ export default function ReceiptEditModal() {
                   style={[styles.input, styles.itemNameInput]}
                   value={item.name}
                   onChangeText={(val) => handleUpdateItem(item.id, 'name', val)}
-                  placeholder="Item Name"
+                  placeholder="Item Name / Description"
                   placeholderTextColor={COLORS.textSubtle}
                 />
                 <TouchableOpacity
@@ -217,6 +290,17 @@ export default function ReceiptEditModal() {
               </View>
 
               <View style={styles.itemGridRow}>
+                <View style={styles.gridCol}>
+                  <Text style={styles.colLabel}>HSN/SAC</Text>
+                  <TextInput
+                    style={styles.gridInput}
+                    value={item.hsnCode || ''}
+                    onChangeText={(val) => handleUpdateItem(item.id, 'hsnCode', val)}
+                    placeholder="1006"
+                    placeholderTextColor={COLORS.textSubtle}
+                  />
+                </View>
+
                 <View style={styles.gridCol}>
                   <Text style={styles.colLabel}>Qty</Text>
                   <TextInput
@@ -247,7 +331,7 @@ export default function ReceiptEditModal() {
                 </View>
 
                 <View style={styles.gridColRight}>
-                  <Text style={styles.colLabel}>Line Total</Text>
+                  <Text style={styles.colLabel}>Total</Text>
                   <Text style={styles.lineTotalText}>
                     {formatCurrency(item.quantity * item.unitPrice)}
                   </Text>
@@ -259,7 +343,7 @@ export default function ReceiptEditModal() {
 
         {/* Calculation Summary Box */}
         <View style={styles.summaryCard}>
-          <Text style={styles.summaryTitle}>Recalculated Totals</Text>
+          <Text style={styles.summaryTitle}>Tax & Totals Breakdown</Text>
 
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Subtotal ({items.length} items)</Text>
@@ -289,61 +373,77 @@ export default function ReceiptEditModal() {
                     taxType === type && styles.taxTypeBtnActive,
                   ]}
                 >
-                  <Text style={[
-                    styles.taxTypeBtnText,
-                    taxType === type && styles.taxTypeBtnTextActive,
-                  ]}>
-                    {type === 'none' ? 'None' : type.toUpperCase()}
+                  <Text
+                    style={[
+                      styles.taxTypeBtnText,
+                      taxType === type && styles.taxTypeBtnTextActive,
+                    ]}
+                  >
+                    {type === 'none' ? 'None' : type === 'gst' ? 'GST' : 'IGST'}
                   </Text>
                 </TouchableOpacity>
               ))}
             </View>
           </View>
 
-          {/* Tax Percent Input */}
           {taxType !== 'none' && (
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Tax Rate (%)</Text>
+              <Text style={styles.summaryLabel}>GST Rate (%)</Text>
               <TextInput
                 style={styles.calcInput}
                 value={taxPercentStr}
                 onChangeText={setTaxPercentStr}
                 keyboardType="decimal-pad"
-                placeholder="e.g. 18"
-                placeholderTextColor="#666"
+                placeholder="18"
+                placeholderTextColor={COLORS.textSubtle}
               />
             </View>
           )}
 
-          {/* GST Breakdown */}
           {taxType === 'gst' && taxPercent > 0 && (
             <>
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>CGST ({taxPercent / 2}%)</Text>
-                <Text style={styles.summaryValue}>₹{cgst.toFixed(2)}</Text>
+                <Text style={styles.summarySubLabel}>└ CGST ({taxPercent / 2}%)</Text>
+                <Text style={styles.summarySubValue}>+{formatCurrency(cgst)}</Text>
               </View>
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>SGST ({taxPercent / 2}%)</Text>
-                <Text style={styles.summaryValue}>₹{sgst.toFixed(2)}</Text>
+                <Text style={styles.summarySubLabel}>└ SGST ({taxPercent / 2}%)</Text>
+                <Text style={styles.summarySubValue}>+{formatCurrency(sgst)}</Text>
               </View>
             </>
           )}
+
           {taxType === 'igst' && taxPercent > 0 && (
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>IGST ({taxPercent}%)</Text>
-              <Text style={styles.summaryValue}>₹{igst.toFixed(2)}</Text>
+              <Text style={styles.summarySubLabel}>└ IGST ({taxPercent}%)</Text>
+              <Text style={styles.summarySubValue}>+{formatCurrency(igst)}</Text>
             </View>
           )}
 
-          <View style={[styles.summaryRow, styles.grandTotalRow]}>
-            <Text style={styles.grandTotalLabel}>GRAND TOTAL</Text>
+          <View style={styles.divider} />
+
+          <View style={styles.summaryRow}>
+            <Text style={styles.grandTotalLabel}>Grand Total</Text>
             <Text style={styles.grandTotalValue}>{formatCurrency(grandTotal)}</Text>
           </View>
         </View>
 
-        <TouchableOpacity style={styles.primarySaveBtn} onPress={handleSaveReceipt}>
-          <Ionicons name="document-text" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
-          <Text style={styles.primarySaveText}>Save & Generate Invoice</Text>
+        {/* Notes / Terms */}
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Notes / Remarks (Optional)</Text>
+          <TextInput
+            style={[styles.input, { height: 60, textAlignVertical: 'top' }]}
+            value={notes}
+            onChangeText={setNotes}
+            multiline
+            placeholder="e.g. Goods once sold will not be returned. Thank you!"
+            placeholderTextColor={COLORS.textSubtle}
+          />
+        </View>
+
+        <TouchableOpacity style={styles.saveBottomBtn} onPress={handleSaveReceipt}>
+          <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+          <Text style={styles.saveBottomBtnText}>Save & Generate PDF</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -359,9 +459,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 50,
-    paddingBottom: 16,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.cardBorder,
   },
@@ -369,36 +469,32 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
     color: COLORS.text,
   },
   saveHeaderBtn: {
     backgroundColor: COLORS.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
     borderRadius: 8,
   },
   saveHeaderText: {
     color: '#FFFFFF',
-    fontWeight: '700',
+    fontWeight: '600',
+    fontSize: 14,
   },
   scrollContent: {
-    padding: 20,
+    padding: 16,
+    paddingBottom: 40,
   },
   sectionCard: {
     backgroundColor: COLORS.card,
-    borderRadius: 16,
+    borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: COLORS.cardBorder,
-  },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: 12,
   },
   sectionHeaderRow: {
     flexDirection: 'row',
@@ -406,180 +502,228 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.text,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  input: {
+    backgroundColor: COLORS.inputBg,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+    color: COLORS.text,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+  },
+  formatRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 10,
+  },
+  formatBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: COLORS.inputBg,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+    borderRadius: 8,
+    paddingVertical: 10,
+  },
+  formatBtnActive: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primary + '20',
+  },
+  formatBtnText: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    fontWeight: '600',
+  },
+  formatBtnTextActive: {
+    color: COLORS.text,
+    fontWeight: '700',
+  },
   addItemBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    backgroundColor: COLORS.receiptColor,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
   },
   addItemText: {
     color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: '700',
-    marginLeft: 2,
-  },
-  input: {
-    backgroundColor: COLORS.inputBg,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: COLORS.text,
+    fontWeight: '600',
+    marginLeft: 4,
   },
   itemRowCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderRadius: 12,
+    backgroundColor: COLORS.inputBg,
+    borderRadius: 8,
     padding: 12,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: COLORS.cardBorder,
   },
   itemHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   itemNumText: {
     fontSize: 12,
-    fontWeight: '800',
-    color: COLORS.primary,
-    marginRight: 8,
+    fontWeight: '700',
+    color: COLORS.receiptColor,
+    width: 24,
   },
   itemNameInput: {
     flex: 1,
-    fontWeight: '600',
+    paddingVertical: 6,
+    fontSize: 13,
   },
   deleteBtn: {
-    padding: 8,
-    marginLeft: 6,
+    padding: 6,
+    marginLeft: 8,
   },
   itemGridRow: {
     flexDirection: 'row',
+    gap: 6,
     alignItems: 'center',
   },
   gridCol: {
     flex: 1,
-    marginRight: 6,
   },
   gridColRight: {
     flex: 1.2,
     alignItems: 'flex-end',
   },
   colLabel: {
-    fontSize: 11,
-    color: COLORS.textMuted,
+    fontSize: 10,
+    color: COLORS.textSubtle,
+    textTransform: 'uppercase',
     marginBottom: 4,
   },
   gridInput: {
-    backgroundColor: COLORS.inputBg,
+    backgroundColor: COLORS.card,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: COLORS.cardBorder,
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    fontSize: 13,
     color: COLORS.text,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    fontSize: 12,
     textAlign: 'center',
   },
   lineTotalText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: COLORS.incomeColor,
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginTop: 4,
   },
   summaryCard: {
     backgroundColor: COLORS.card,
-    borderRadius: 16,
+    borderRadius: 12,
     padding: 16,
-    marginBottom: 20,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: COLORS.cardBorder,
   },
   summaryTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: COLORS.textMuted,
+    color: COLORS.text,
     marginBottom: 12,
-    textTransform: 'uppercase',
   },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    paddingVertical: 6,
   },
   summaryLabel: {
-    fontSize: 14,
+    fontSize: 13,
     color: COLORS.textMuted,
   },
   summaryValue: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600',
     color: COLORS.text,
+  },
+  summarySubLabel: {
+    fontSize: 12,
+    color: COLORS.textSubtle,
+    paddingLeft: 8,
+  },
+  summarySubValue: {
+    fontSize: 12,
+    color: COLORS.textMuted,
   },
   calcInput: {
     backgroundColor: COLORS.inputBg,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: COLORS.cardBorder,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    width: 90,
-    textAlign: 'right',
     color: COLORS.text,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    fontSize: 13,
+    width: 80,
+    textAlign: 'right',
+  },
+  taxTypeBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: COLORS.inputBg,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+  },
+  taxTypeBtnActive: {
+    backgroundColor: COLORS.primary + '30',
+    borderColor: COLORS.primary,
+  },
+  taxTypeBtnText: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    fontWeight: '600',
+  },
+  taxTypeBtnTextActive: {
+    color: COLORS.primary,
     fontWeight: '700',
   },
-  grandTotalRow: {
-    borderTopWidth: 1,
-    borderTopColor: COLORS.cardBorder,
-    paddingTop: 12,
-    marginTop: 4,
+  divider: {
+    height: 1,
+    backgroundColor: COLORS.cardBorder,
+    marginVertical: 8,
   },
   grandTotalLabel: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
     color: COLORS.text,
   },
   grandTotalValue: {
-    fontSize: 20,
-    fontWeight: '900',
+    fontSize: 17,
+    fontWeight: '800',
     color: COLORS.primary,
   },
-  primarySaveBtn: {
+  saveBottomBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.primary,
-    paddingVertical: 16,
-    borderRadius: 14,
-    marginBottom: 40,
+    backgroundColor: COLORS.receiptColor,
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginTop: 8,
   },
-  primarySaveText: {
+  saveBottomBtnText: {
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  taxTypeBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-    backgroundColor: COLORS.inputBg,
-  },
-  taxTypeBtnActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  taxTypeBtnText: {
-    fontSize: 12,
+    fontSize: 15,
     fontWeight: '700',
-    color: COLORS.textMuted,
-  },
-  taxTypeBtnTextActive: {
-    color: '#FFFFFF',
   },
 });

@@ -272,6 +272,8 @@ export class GroqService {
       items: items.length > 0 ? items : [{ name: 'Sample Item', quantity: 1, unit: 'pcs', unit_price: 100 }],
       customer_name: null,
       customer_phone: null,
+      customer_address: null,
+      customer_gstin: null,
       discount: 0,
       tax: 0,
       tax_percent: 0,
