@@ -96,10 +96,10 @@ export function AskAIModal({ onClose }: AskAIModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="bg-card border border-cardBorder rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm">
+      <div className="bg-card border border-cardBorder rounded-t-2xl sm:rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="p-5 border-b border-cardBorder flex items-center justify-between bg-slate-900/50">
+        <div className="p-4 sm:p-5 border-b border-cardBorder flex items-center justify-between bg-slate-900/50">
           <div className="flex items-center space-x-2.5">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-primaryDark to-primary flex items-center justify-center">
               <Sparkles className="w-4 h-4 text-white" />
@@ -115,9 +115,9 @@ export function AskAIModal({ onClose }: AskAIModalProps) {
         </div>
 
         {/* Content */}
-        <div className="p-6 flex flex-col items-center text-center space-y-4">
-          <p className="text-xs text-textMuted max-w-sm">
-            Ask natural questions like <span className="text-text font-medium">"How much did I spend on groceries this month?"</span> or <span className="text-text font-medium">"What was my largest expense?"</span>
+        <div className="p-5 sm:p-6 flex flex-col items-center text-center space-y-3.5 sm:space-y-4 overflow-y-auto">
+          <p className="text-[11px] sm:text-xs text-textMuted max-w-sm">
+            Ask natural questions like <span className="text-text font-medium">"How much did I spend on groceries this month?"</span>
           </p>
 
           <AudioVisualizer isRecording={recorder.state === 'Recording'} volumeLevel={recorder.volumeLevel} />
@@ -126,16 +126,16 @@ export function AskAIModal({ onClose }: AskAIModalProps) {
           <button
             onClick={handleRecordToggle}
             disabled={loading}
-            className={`w-20 h-20 rounded-full flex items-center justify-center transition-all shadow-xl cursor-pointer ${
+            className={`w-18 h-18 sm:w-20 sm:h-20 rounded-full flex items-center justify-center transition-all shadow-xl cursor-pointer ${
               recorder.state === 'Recording'
                 ? 'bg-danger text-white animate-pulse-mic shadow-danger/30'
                 : 'bg-primary hover:bg-primaryDark text-white shadow-primary/25 hover:scale-105 active:scale-95'
             }`}
           >
             {recorder.state === 'Recording' ? (
-              <Square className="w-8 h-8 fill-current" />
+              <Square className="w-7 h-7 sm:w-8 sm:h-8 fill-current" />
             ) : (
-              <Mic className="w-8 h-8" />
+              <Mic className="w-7 h-7 sm:w-8 sm:h-8" />
             )}
           </button>
 
@@ -144,32 +144,32 @@ export function AskAIModal({ onClose }: AskAIModalProps) {
               ? `Listening (${recorder.durationSeconds}s)... Tap to Stop`
               : loading
               ? 'Analyzing database...'
-              : 'Tap microphone to speak your question'}
+              : 'Tap microphone to speak'}
           </p>
 
           {loading && <Loader2 className="w-5 h-5 text-primary animate-spin" />}
 
           {/* Results */}
           {transcript && (
-            <div className="w-full text-left p-3.5 rounded-xl bg-slate-900/60 border border-cardBorder space-y-1">
+            <div className="w-full text-left p-3 rounded-xl bg-slate-900/60 border border-cardBorder space-y-1">
               <span className="text-[10px] font-bold uppercase text-textSubtle tracking-wider">You Asked:</span>
               <p className="text-xs text-text font-medium italic">"{transcript}"</p>
             </div>
           )}
 
           {answer && (
-            <div className="w-full text-left p-4 rounded-xl bg-gradient-to-br from-slate-900/90 to-primary/10 border border-primary/30 space-y-1.5">
+            <div className="w-full text-left p-3.5 sm:p-4 rounded-xl bg-gradient-to-br from-slate-900/90 to-primary/10 border border-primary/30 space-y-1.5">
               <div className="flex items-center gap-1.5 text-primary font-bold text-xs">
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>AI Answer:</span>
               </div>
-              <p className="text-sm font-semibold text-text leading-relaxed">{answer}</p>
+              <p className="text-xs sm:text-sm font-semibold text-text leading-relaxed">{answer}</p>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-cardBorder bg-slate-900/50 flex justify-end">
+        <div className="p-3.5 sm:p-4 border-t border-cardBorder bg-slate-900/50 flex justify-end">
           <button
             onClick={onClose}
             className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-text transition"

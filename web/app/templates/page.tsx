@@ -59,22 +59,22 @@ export default function TemplatesPage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-text tracking-tight flex items-center gap-2">
-            <Layers className="w-6 h-6 text-primary" />
+          <h1 className="text-xl sm:text-2xl font-bold text-text tracking-tight flex items-center gap-2">
+            <Layers className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
             EPR Data Templates
           </h1>
-          <p className="text-xs text-textMuted mt-1">
-            Build custom voice data schemas with attributes and repeated hourly production tables.
+          <p className="text-xs text-textMuted mt-0.5">
+            Build custom voice data schemas with attributes and repeated tables.
           </p>
         </div>
 
         <button
           onClick={() => setEditingTemplate(null)}
-          className="px-4 py-2.5 rounded-xl bg-primary hover:bg-primaryDark text-white text-xs font-bold shadow-lg shadow-primary/20 flex items-center gap-1.5 transition cursor-pointer self-start md:self-auto"
+          className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-primary hover:bg-primaryDark text-white text-xs font-bold shadow-lg shadow-primary/20 flex items-center justify-center gap-1.5 transition cursor-pointer self-stretch sm:self-auto"
         >
           <Plus className="w-4 h-4" />
           Create New Template
@@ -82,43 +82,43 @@ export default function TemplatesPage() {
       </div>
 
       {/* Templates Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
         {templates.map((tmpl) => (
           <div
             key={tmpl.id}
-            className="p-5 rounded-2xl bg-card border border-cardBorder hover:border-slate-600 transition space-y-4 shadow-sm"
+            className="p-4 sm:p-5 rounded-2xl bg-card border border-cardBorder hover:border-slate-600 transition space-y-3 sm:space-y-4 shadow-sm"
           >
-            <div className="flex items-center justify-between pb-3 border-b border-cardBorder/60">
+            <div className="flex items-center justify-between pb-2.5 border-b border-cardBorder/60">
               <div>
-                <h3 className="text-sm font-bold text-text flex items-center gap-2">
+                <h3 className="text-xs sm:text-sm font-bold text-text flex items-center gap-1.5 flex-wrap">
                   {tmpl.name}
                   {tmpl.isDefault && (
-                    <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-slate-800 text-textMuted border border-cardBorder">
-                      Built-in Default
+                    <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-slate-800 text-textMuted border border-cardBorder">
+                      Default
                     </span>
                   )}
                 </h3>
-                {tmpl.description && <p className="text-xs text-textSubtle mt-1">{tmpl.description}</p>}
+                {tmpl.description && <p className="text-xs text-textSubtle mt-0.5">{tmpl.description}</p>}
               </div>
 
-              <div className="flex items-center space-x-1.5">
+              <div className="flex items-center space-x-1 shrink-0">
                 <button
                   onClick={() => handleDuplicate(tmpl)}
-                  title="Duplicate template"
-                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-textSubtle hover:text-text transition cursor-pointer"
+                  title="Duplicate"
+                  className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-textSubtle hover:text-text transition cursor-pointer"
                 >
                   <Copy className="w-3.5 h-3.5" />
                 </button>
                 <button
                   onClick={() => setEditingTemplate(tmpl)}
-                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-textSubtle hover:text-text transition cursor-pointer"
+                  className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-textSubtle hover:text-text transition cursor-pointer"
                 >
                   <Edit2 className="w-3.5 h-3.5" />
                 </button>
                 {!tmpl.isDefault && (
                   <button
                     onClick={() => handleDelete(tmpl.id)}
-                    className="p-1.5 rounded-lg bg-slate-800 hover:bg-danger/20 hover:text-danger text-textSubtle transition cursor-pointer"
+                    className="p-1 rounded-lg bg-slate-800 hover:bg-danger/20 hover:text-danger text-textSubtle transition cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -127,32 +127,32 @@ export default function TemplatesPage() {
             </div>
 
             {/* Field breakdown */}
-            <div className="space-y-2">
-              <div className="text-[11px] font-semibold uppercase text-textSubtle">
+            <div className="space-y-1.5">
+              <div className="text-[10px] sm:text-[11px] font-semibold uppercase text-textSubtle">
                 Top Fields ({tmpl.fields.length}):
               </div>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-1">
                 {tmpl.fields.map((f) => (
                   <span
                     key={f.id}
-                    className="text-xs px-2 py-1 rounded-lg bg-slate-900 border border-cardBorder text-textMuted font-medium"
+                    className="text-[11px] px-2 py-0.5 rounded-lg bg-slate-900 border border-cardBorder text-textMuted font-medium"
                   >
-                    {f.name} <span className="text-[10px] text-textSubtle">({f.type})</span>
+                    {f.name} <span className="text-[9px] text-textSubtle">({f.type})</span>
                   </span>
                 ))}
               </div>
             </div>
 
             {tmpl.hasTable && (
-              <div className="space-y-2 pt-2 border-t border-cardBorder/60">
-                <div className="text-[11px] font-semibold uppercase text-dataColor">
+              <div className="space-y-1.5 pt-2 border-t border-cardBorder/60">
+                <div className="text-[10px] sm:text-[11px] font-semibold uppercase text-dataColor">
                   {tmpl.tableTitle || 'Table'} Columns ({tmpl.tableFields?.length || 0}):
                 </div>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-1">
                   {(tmpl.tableFields || []).map((col) => (
                     <span
                       key={col.id}
-                      className="text-xs px-2 py-1 rounded-lg bg-slate-900 border border-cyan-500/30 text-cyan-400 font-medium"
+                      className="text-[11px] px-2 py-0.5 rounded-lg bg-slate-900 border border-cyan-500/30 text-cyan-400 font-medium"
                     >
                       {col.name}
                     </span>
@@ -165,16 +165,16 @@ export default function TemplatesPage() {
       </div>
 
       {/* Footer Reset */}
-      <div className="p-4 rounded-xl bg-card border border-cardBorder flex items-center justify-between">
+      <div className="p-3.5 sm:p-4 rounded-xl bg-card border border-cardBorder flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <span className="text-xs text-textMuted">
-          Want to restore the factory default Monitoring Details template?
+          Restore default Monitoring Details template?
         </span>
         <button
           onClick={handleResetDefaults}
-          className="text-xs text-textSubtle hover:text-text font-semibold flex items-center gap-1.5 transition cursor-pointer"
+          className="text-xs text-textSubtle hover:text-text font-semibold flex items-center gap-1.5 transition cursor-pointer self-start sm:self-auto"
         >
           <RotateCcw className="w-3.5 h-3.5" />
-          Reset Defaults
+          <span>Reset Defaults</span>
         </button>
       </div>
 

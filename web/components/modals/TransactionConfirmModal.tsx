@@ -163,22 +163,22 @@ export function TransactionConfirmModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-card border border-cardBorder rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
+      <div className="bg-card border border-cardBorder rounded-t-2xl sm:rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Modal Header */}
-        <div className="p-6 border-b border-cardBorder flex items-center justify-between bg-slate-900/50">
+        <div className="p-4 sm:p-6 border-b border-cardBorder flex items-center justify-between bg-slate-900/50">
           <div>
-            <h2 className="text-xl font-bold text-text flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-secondary" />
-              Confirm Voice Financial Entries
+            <h2 className="text-base sm:text-xl font-bold text-text flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-secondary" />
+              Confirm Financial Entries
             </h2>
-            <p className="text-xs text-textMuted mt-0.5">
-              Extracted {entriesList.length} item{entriesList.length > 1 ? 's' : ''} from voice dictation. Review and edit before saving.
+            <p className="text-[11px] sm:text-xs text-textMuted mt-0.5">
+              Extracted {entriesList.length} item{entriesList.length > 1 ? 's' : ''} from voice.
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-textMuted hover:text-text hover:bg-slate-800 transition"
+            className="p-1.5 sm:p-2 rounded-xl text-textMuted hover:text-text hover:bg-slate-800 transition"
           >
             <X className="w-5 h-5" />
           </button>
@@ -186,8 +186,8 @@ export function TransactionConfirmModal({
 
         {/* Spoken Transcript preview */}
         {extractedData.raw_transcript && (
-          <div className="px-6 py-3 bg-slate-950/60 border-b border-cardBorder flex items-center gap-2">
-            <span className="text-[11px] font-semibold uppercase text-primary tracking-wider shrink-0">
+          <div className="px-4 sm:px-6 py-2.5 bg-slate-950/60 border-b border-cardBorder flex items-center gap-2">
+            <span className="text-[10px] sm:text-[11px] font-semibold uppercase text-primary tracking-wider shrink-0">
               Spoken:
             </span>
             <span className="text-xs text-textMuted italic truncate">
@@ -197,9 +197,9 @@ export function TransactionConfirmModal({
         )}
 
         {/* Modal Body - Scrollable entries */}
-        <div className="p-6 overflow-y-auto space-y-6 flex-1">
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-6 flex-1">
           {error && (
-            <div className="p-3.5 rounded-xl bg-danger/15 border border-danger/30 text-danger text-xs font-medium">
+            <div className="p-3 rounded-xl bg-danger/15 border border-danger/30 text-danger text-xs font-medium">
               {error}
             </div>
           )}
@@ -207,14 +207,14 @@ export function TransactionConfirmModal({
           {entriesList.map((entry, idx) => (
             <div
               key={entry.id}
-              className="p-5 rounded-xl bg-slate-900/70 border border-cardBorder space-y-4 relative"
+              className="p-4 sm:p-5 rounded-xl bg-slate-900/70 border border-cardBorder space-y-3 sm:space-y-4 relative"
             >
-              <div className="flex items-center justify-between pb-3 border-b border-cardBorder/60">
+              <div className="flex items-center justify-between pb-2 border-b border-cardBorder/60">
                 <span className="text-xs font-bold text-primary flex items-center gap-1.5">
                   <span className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center text-[11px]">
                     {idx + 1}
                   </span>
-                  Transaction #{idx + 1}
+                  Item #{idx + 1}
                 </span>
 
                 {entriesList.length > 1 && (
@@ -227,10 +227,10 @@ export function TransactionConfirmModal({
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 {/* Amount */}
                 <div>
-                  <label className="block text-[11px] font-semibold uppercase text-textSubtle mb-1">
+                  <label className="block text-[10px] sm:text-[11px] font-semibold uppercase text-textSubtle mb-1">
                     Amount (₹) *
                   </label>
                   <input
@@ -238,27 +238,27 @@ export function TransactionConfirmModal({
                     value={entry.amount}
                     onChange={(e) => updateEntry(idx, 'amount', e.target.value)}
                     placeholder="e.g. 250"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-background border border-cardBorder text-sm text-text font-semibold focus:outline-none focus:border-primary"
+                    className="w-full px-3 py-2 rounded-xl bg-background border border-cardBorder text-sm text-text font-semibold focus:outline-none focus:border-primary"
                   />
                 </div>
 
                 {/* Merchant / Payee */}
                 <div>
-                  <label className="block text-[11px] font-semibold uppercase text-textSubtle mb-1">
-                    Merchant / Item / Person
+                  <label className="block text-[10px] sm:text-[11px] font-semibold uppercase text-textSubtle mb-1">
+                    Merchant / Item
                   </label>
                   <input
                     type="text"
                     value={entry.merchant}
                     onChange={(e) => updateEntry(idx, 'merchant', e.target.value)}
-                    placeholder="e.g. Grocery Supermarket"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-background border border-cardBorder text-sm text-text focus:outline-none focus:border-primary"
+                    placeholder="e.g. Grocery Shop"
+                    className="w-full px-3 py-2 rounded-xl bg-background border border-cardBorder text-sm text-text focus:outline-none focus:border-primary"
                   />
                 </div>
 
                 {/* Type Toggle */}
                 <div>
-                  <label className="block text-[11px] font-semibold uppercase text-textSubtle mb-1">
+                  <label className="block text-[10px] sm:text-[11px] font-semibold uppercase text-textSubtle mb-1">
                     Type
                   </label>
                   <div className="grid grid-cols-2 gap-1 bg-background p-1 rounded-xl border border-cardBorder">
@@ -268,7 +268,7 @@ export function TransactionConfirmModal({
                         updateEntry(idx, 'transactionType', 'expense');
                         updateEntry(idx, 'intent', 'expense');
                       }}
-                      className={`py-1.5 rounded-lg text-xs font-semibold transition ${
+                      className={`py-1 rounded-lg text-xs font-semibold transition ${
                         entry.transactionType === 'expense'
                           ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
                           : 'text-textMuted hover:text-text'
@@ -282,7 +282,7 @@ export function TransactionConfirmModal({
                         updateEntry(idx, 'transactionType', 'income');
                         updateEntry(idx, 'intent', 'income');
                       }}
-                      className={`py-1.5 rounded-lg text-xs font-semibold transition ${
+                      className={`py-1 rounded-lg text-xs font-semibold transition ${
                         entry.transactionType === 'income'
                           ? 'bg-secondary/20 text-secondary border border-secondary/30'
                           : 'text-textMuted hover:text-text'
@@ -295,13 +295,13 @@ export function TransactionConfirmModal({
 
                 {/* Category */}
                 <div>
-                  <label className="block text-[11px] font-semibold uppercase text-textSubtle mb-1">
+                  <label className="block text-[10px] sm:text-[11px] font-semibold uppercase text-textSubtle mb-1">
                     Category
                   </label>
                   <select
                     value={entry.category}
                     onChange={(e) => updateEntry(idx, 'category', e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-background border border-cardBorder text-sm text-text focus:outline-none focus:border-primary"
+                    className="w-full px-3 py-2 rounded-xl bg-background border border-cardBorder text-xs sm:text-sm text-text focus:outline-none focus:border-primary"
                   >
                     {DEFAULT_CATEGORIES.map((cat) => (
                       <option key={cat} value={cat} className="bg-slate-900 text-text">
@@ -313,13 +313,13 @@ export function TransactionConfirmModal({
 
                 {/* Payment Method */}
                 <div>
-                  <label className="block text-[11px] font-semibold uppercase text-textSubtle mb-1">
+                  <label className="block text-[10px] sm:text-[11px] font-semibold uppercase text-textSubtle mb-1">
                     Payment Method
                   </label>
                   <select
                     value={entry.paymentMethod || ''}
                     onChange={(e) => updateEntry(idx, 'paymentMethod', e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-background border border-cardBorder text-sm text-text focus:outline-none focus:border-primary"
+                    className="w-full px-3 py-2 rounded-xl bg-background border border-cardBorder text-xs sm:text-sm text-text focus:outline-none focus:border-primary"
                   >
                     <option value="" className="bg-slate-900 text-textSubtle">
                       None / Not Mentioned
@@ -334,21 +334,21 @@ export function TransactionConfirmModal({
 
                 {/* Date */}
                 <div>
-                  <label className="block text-[11px] font-semibold uppercase text-textSubtle mb-1">
+                  <label className="block text-[10px] sm:text-[11px] font-semibold uppercase text-textSubtle mb-1">
                     Date
                   </label>
                   <input
                     type="date"
                     value={entry.date}
                     onChange={(e) => updateEntry(idx, 'date', e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-background border border-cardBorder text-sm text-text focus:outline-none focus:border-primary"
+                    className="w-full px-3 py-2 rounded-xl bg-background border border-cardBorder text-xs sm:text-sm text-text focus:outline-none focus:border-primary"
                   />
                 </div>
               </div>
 
               {/* Description */}
               <div>
-                <label className="block text-[11px] font-semibold uppercase text-textSubtle mb-1">
+                <label className="block text-[10px] sm:text-[11px] font-semibold uppercase text-textSubtle mb-1">
                   Description / Note
                 </label>
                 <input
@@ -356,7 +356,7 @@ export function TransactionConfirmModal({
                   value={entry.description}
                   onChange={(e) => updateEntry(idx, 'description', e.target.value)}
                   placeholder="Additional details..."
-                  className="w-full px-3.5 py-2 rounded-xl bg-background border border-cardBorder text-xs text-text focus:outline-none focus:border-primary"
+                  className="w-full px-3 py-2 rounded-xl bg-background border border-cardBorder text-xs text-text focus:outline-none focus:border-primary"
                 />
               </div>
             </div>
@@ -365,19 +365,19 @@ export function TransactionConfirmModal({
           <button
             type="button"
             onClick={addEntry}
-            className="w-full py-3 rounded-xl border border-dashed border-cardBorder hover:border-primary/50 text-textMuted hover:text-primary text-xs font-semibold flex items-center justify-center gap-1.5 transition"
+            className="w-full py-2.5 sm:py-3 rounded-xl border border-dashed border-cardBorder hover:border-primary/50 text-textMuted hover:text-primary text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            Add Another Transaction Item
+            Add Another Item
           </button>
         </div>
 
         {/* Modal Footer */}
-        <div className="p-6 border-t border-cardBorder bg-slate-900/50 flex items-center justify-between">
+        <div className="p-4 sm:p-6 border-t border-cardBorder bg-slate-900/50 flex items-center justify-between gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2.5 rounded-xl border border-cardBorder text-textMuted hover:text-text hover:bg-slate-800 text-xs font-semibold transition"
+            className="px-4 py-2 rounded-xl border border-cardBorder text-textMuted hover:text-text hover:bg-slate-800 text-xs font-semibold transition"
           >
             Cancel
           </button>
@@ -386,14 +386,14 @@ export function TransactionConfirmModal({
             type="button"
             disabled={saving}
             onClick={handleSaveAll}
-            className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-primaryDark to-primary hover:from-primary hover:to-indigo-500 text-white text-xs font-bold shadow-lg shadow-primary/25 flex items-center gap-2 transition disabled:opacity-50 cursor-pointer"
+            className="px-5 py-2 rounded-xl bg-gradient-to-r from-primaryDark to-primary hover:from-primary hover:to-indigo-500 text-white text-xs font-bold shadow-lg shadow-primary/25 flex items-center gap-1.5 transition disabled:opacity-50 cursor-pointer"
           >
             {saving ? (
-              <span>Saving to MongoDB...</span>
+              <span>Saving...</span>
             ) : (
               <>
-                <span>Confirm & Save {entriesList.length} Record{entriesList.length > 1 ? 's' : ''}</span>
-                <ArrowRight className="w-4 h-4" />
+                <span>Save {entriesList.length} Record{entriesList.length > 1 ? 's' : ''}</span>
+                <ArrowRight className="w-3.5 h-3.5" />
               </>
             )}
           </button>

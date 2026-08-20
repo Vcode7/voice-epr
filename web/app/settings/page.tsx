@@ -9,11 +9,9 @@ import {
   Coins,
   Database,
   Download,
-  Upload,
-  RotateCcw,
-  Sparkles,
   CheckCircle2,
   AlertCircle,
+  Sparkles,
 } from 'lucide-react';
 import { UserSettings } from '@/types';
 import { CURRENCIES, DEFAULT_SETTINGS } from '@/lib/constants';
@@ -86,7 +84,7 @@ export default function SettingsPage() {
   };
 
   const handleSeedDemoData = async () => {
-    if (!confirm('This will seed realistic sample transactions, GST invoices, and EPR records into your MongoDB database.')) return;
+    if (!confirm('This will seed sample transactions, GST invoices, and EPR records into your MongoDB database.')) return;
     try {
       const res = await fetch('/api/seed', { method: 'POST' });
       const data = await res.json();
@@ -97,7 +95,7 @@ export default function SettingsPage() {
   };
 
   const handleClearData = async () => {
-    if (!confirm('WARNING: Are you sure you want to delete ALL stored transactions, receipts, EPR entries, budgets, and debts? This action cannot be undone.')) return;
+    if (!confirm('WARNING: Are you sure you want to delete ALL stored records? This action cannot be undone.')) return;
     try {
       await fetch('/api/clear', { method: 'POST' });
       alert('All database records have been cleared.');
@@ -136,97 +134,97 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-text tracking-tight flex items-center gap-2">
-          <Settings className="w-6 h-6 text-primary" />
+        <h1 className="text-xl sm:text-2xl font-bold text-text tracking-tight flex items-center gap-2">
+          <Settings className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
           Settings & Data Management
         </h1>
-        <p className="text-xs text-textMuted mt-1">
-          Configure business profile, multi-tier Groq API keys, and backup/restore database records.
+        <p className="text-xs text-textMuted mt-0.5">
+          Configure business profile, Groq keys, and database backup.
         </p>
       </div>
 
-      <form onSubmit={handleSaveSettings} className="space-y-6">
+      <form onSubmit={handleSaveSettings} className="space-y-4 sm:space-y-6">
         {/* Business Details */}
-        <div className="p-6 rounded-2xl bg-card border border-cardBorder shadow-md space-y-4">
-          <h2 className="text-sm font-bold text-text uppercase tracking-wider flex items-center gap-2">
+        <div className="p-4 sm:p-6 rounded-2xl bg-card border border-cardBorder shadow-md space-y-3 sm:space-y-4">
+          <h2 className="text-xs sm:text-sm font-bold text-text uppercase tracking-wider flex items-center gap-2">
             <Building className="w-4 h-4 text-primary" />
             Enterprise & Invoice Profile
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div>
-              <label className="block text-[11px] font-semibold uppercase text-textSubtle mb-1">
-                Business / Enterprise Name
+              <label className="block text-[10px] sm:text-[11px] font-semibold uppercase text-textSubtle mb-1">
+                Business Name
               </label>
               <input
                 type="text"
                 value={settings.businessName}
                 onChange={(e) => setSettings({ ...settings, businessName: e.target.value })}
-                className="w-full px-3.5 py-2 rounded-xl bg-background border border-cardBorder text-xs text-text focus:outline-none focus:border-primary"
+                className="w-full px-3 py-2 rounded-xl bg-background border border-cardBorder text-xs text-text focus:outline-none focus:border-primary"
               />
             </div>
 
             <div>
-              <label className="block text-[11px] font-semibold uppercase text-textSubtle mb-1">
+              <label className="block text-[10px] sm:text-[11px] font-semibold uppercase text-textSubtle mb-1">
                 Business Phone
               </label>
               <input
                 type="text"
                 value={settings.businessPhone}
                 onChange={(e) => setSettings({ ...settings, businessPhone: e.target.value })}
-                className="w-full px-3.5 py-2 rounded-xl bg-background border border-cardBorder text-xs text-text focus:outline-none focus:border-primary"
+                className="w-full px-3 py-2 rounded-xl bg-background border border-cardBorder text-xs text-text focus:outline-none focus:border-primary"
               />
             </div>
 
             <div>
-              <label className="block text-[11px] font-semibold uppercase text-textSubtle mb-1">
+              <label className="block text-[10px] sm:text-[11px] font-semibold uppercase text-textSubtle mb-1">
                 GSTIN / Tax ID
               </label>
               <input
                 type="text"
                 value={settings.gstin}
                 onChange={(e) => setSettings({ ...settings, gstin: e.target.value })}
-                className="w-full px-3.5 py-2 rounded-xl bg-background border border-cardBorder text-xs text-text focus:outline-none focus:border-primary font-mono"
+                className="w-full px-3 py-2 rounded-xl bg-background border border-cardBorder text-xs text-text focus:outline-none focus:border-primary font-mono"
               />
             </div>
 
             <div>
-              <label className="block text-[11px] font-semibold uppercase text-textSubtle mb-1">
-                Invoice Number Prefix
+              <label className="block text-[10px] sm:text-[11px] font-semibold uppercase text-textSubtle mb-1">
+                Invoice Prefix
               </label>
               <input
                 type="text"
                 value={settings.receiptPrefix}
                 onChange={(e) => setSettings({ ...settings, receiptPrefix: e.target.value })}
-                className="w-full px-3.5 py-2 rounded-xl bg-background border border-cardBorder text-xs text-text focus:outline-none focus:border-primary font-mono"
+                className="w-full px-3 py-2 rounded-xl bg-background border border-cardBorder text-xs text-text focus:outline-none focus:border-primary font-mono"
               />
             </div>
 
-            <div className="md:col-span-2">
-              <label className="block text-[11px] font-semibold uppercase text-textSubtle mb-1">
+            <div className="sm:col-span-2">
+              <label className="block text-[10px] sm:text-[11px] font-semibold uppercase text-textSubtle mb-1">
                 Business Address
               </label>
               <input
                 type="text"
                 value={settings.businessAddress}
                 onChange={(e) => setSettings({ ...settings, businessAddress: e.target.value })}
-                className="w-full px-3.5 py-2 rounded-xl bg-background border border-cardBorder text-xs text-text focus:outline-none focus:border-primary"
+                className="w-full px-3 py-2 rounded-xl bg-background border border-cardBorder text-xs text-text focus:outline-none focus:border-primary"
               />
             </div>
           </div>
         </div>
 
         {/* Currency Selector */}
-        <div className="p-6 rounded-2xl bg-card border border-cardBorder shadow-md space-y-4">
-          <h2 className="text-sm font-bold text-text uppercase tracking-wider flex items-center gap-2">
+        <div className="p-4 sm:p-6 rounded-2xl bg-card border border-cardBorder shadow-md space-y-3 sm:space-y-4">
+          <h2 className="text-xs sm:text-sm font-bold text-text uppercase tracking-wider flex items-center gap-2">
             <Coins className="w-4 h-4 text-secondary" />
             Default Currency
           </h2>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
             {CURRENCIES.map((c) => {
               const isSelected = settings.currency === c.code;
 
@@ -235,17 +233,17 @@ export default function SettingsPage() {
                   key={c.code}
                   type="button"
                   onClick={() => setSettings({ ...settings, currency: c.code, currencySymbol: c.symbol })}
-                  className={`p-3 rounded-xl border text-left transition cursor-pointer ${
+                  className={`p-2.5 sm:p-3 rounded-xl border text-left transition cursor-pointer ${
                     isSelected
                       ? 'bg-secondary/15 border-secondary text-text font-bold shadow-sm'
                       : 'bg-slate-900/60 border-cardBorder text-textMuted hover:border-slate-600'
                   }`}
                 >
-                  <div className="text-sm font-bold text-text flex items-center justify-between">
+                  <div className="text-xs sm:text-sm font-bold text-text flex items-center justify-between">
                     <span>{c.code}</span>
                     <span className="text-secondary">{c.symbol}</span>
                   </div>
-                  <div className="text-[10px] text-textSubtle truncate mt-0.5">{c.name}</div>
+                  <div className="text-[9px] sm:text-[10px] text-textSubtle truncate mt-0.5">{c.name}</div>
                 </button>
               );
             })}
@@ -253,11 +251,11 @@ export default function SettingsPage() {
         </div>
 
         {/* Groq Keys Configuration */}
-        <div className="p-6 rounded-2xl bg-card border border-cardBorder shadow-md space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold text-text uppercase tracking-wider flex items-center gap-2">
+        <div className="p-4 sm:p-6 rounded-2xl bg-card border border-cardBorder shadow-md space-y-3 sm:space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h2 className="text-xs sm:text-sm font-bold text-text uppercase tracking-wider flex items-center gap-2">
               <Key className="w-4 h-4 text-accent" />
-              Groq AI Cloud Keys & Multi-Key Failover
+              Groq AI Cloud Keys
             </h2>
             {keyStatus.isConfigured ? (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-secondary/15 text-secondary border border-secondary/30 flex items-center gap-1">
@@ -266,41 +264,41 @@ export default function SettingsPage() {
               </span>
             ) : (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30">
-                Key Missing (Offline Mode)
+                Offline Mode
               </span>
             )}
           </div>
 
-          <p className="text-xs text-textSubtle leading-relaxed">
-            The server automatically tries the primary <code className="text-primary">GROQ_API_KEY</code>, then cascades through <code className="text-primary">FALLBACK1</code> and <code className="text-primary">FALLBACK2</code>, and finally falls back to your custom key if rate limits occur.
+          <p className="text-[11px] sm:text-xs text-textSubtle leading-relaxed">
+            Multi-tier automatic failover across primary and backup keys.
           </p>
 
           <div>
-            <label className="block text-[11px] font-semibold uppercase text-textSubtle mb-1">
-              Custom Groq API Key (Optional Override)
+            <label className="block text-[10px] sm:text-[11px] font-semibold uppercase text-textSubtle mb-1">
+              Custom Groq API Key Override
             </label>
             <input
               type="password"
               value={apiKeyInput}
               onChange={(e) => setApiKeyInput(e.target.value)}
               placeholder="gsk_..."
-              className="w-full px-3.5 py-2 rounded-xl bg-background border border-cardBorder text-xs text-text focus:outline-none focus:border-primary font-mono"
+              className="w-full px-3 py-2 rounded-xl bg-background border border-cardBorder text-xs text-text focus:outline-none focus:border-primary font-mono"
             />
           </div>
         </div>
 
         {/* Save Button */}
-        <div className="flex items-center justify-between pt-2">
+        <div className="flex items-center justify-between pt-1">
           {saveSuccess && (
-            <span className="text-xs text-secondary font-bold flex items-center gap-1.5 animate-fade-in">
+            <span className="text-xs text-secondary font-bold flex items-center gap-1 animate-fade-in">
               <CheckCircle2 className="w-4 h-4" />
-              Settings saved successfully!
+              Saved!
             </span>
           )}
           <button
             type="submit"
             disabled={saving}
-            className="ml-auto px-6 py-2.5 rounded-xl bg-primary hover:bg-primaryDark text-white text-xs font-bold shadow-lg shadow-primary/25 transition cursor-pointer"
+            className="ml-auto px-5 sm:px-6 py-2 sm:py-2.5 rounded-xl bg-primary hover:bg-primaryDark text-white text-xs font-bold shadow-lg shadow-primary/25 transition cursor-pointer"
           >
             {saving ? 'Saving...' : 'Save Settings'}
           </button>
@@ -308,41 +306,41 @@ export default function SettingsPage() {
       </form>
 
       {/* Database Management & Portability */}
-      <div className="p-6 rounded-2xl bg-card border border-cardBorder shadow-md space-y-6">
-        <h2 className="text-sm font-bold text-text uppercase tracking-wider flex items-center gap-2">
+      <div className="p-4 sm:p-6 rounded-2xl bg-card border border-cardBorder shadow-md space-y-4 sm:space-y-6">
+        <h2 className="text-xs sm:text-sm font-bold text-text uppercase tracking-wider flex items-center gap-2">
           <Database className="w-4 h-4 text-cyan-400" />
-          MongoDB Database Operations & Data Portability
+          MongoDB Database Operations
         </h2>
 
         {/* Seed & Clear */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="p-4 rounded-xl bg-slate-900/60 border border-cardBorder space-y-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+          <div className="p-3.5 sm:p-4 rounded-xl bg-slate-900/60 border border-cardBorder space-y-2">
             <h3 className="text-xs font-bold text-text flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-accent" />
               Load Sample Demo Data
             </h3>
-            <p className="text-[11px] text-textSubtle leading-relaxed">
-              Populate database with sample groceries, salary, fuel transactions, GST receipts, and injection molding EPR logs.
+            <p className="text-[10px] sm:text-[11px] text-textSubtle leading-relaxed">
+              Populate database with sample transactions, invoices, and EPR records.
             </p>
             <button
               onClick={handleSeedDemoData}
-              className="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-text transition cursor-pointer"
+              className="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-text transition cursor-pointer"
             >
               Seed Demo Records
             </button>
           </div>
 
-          <div className="p-4 rounded-xl bg-slate-900/60 border border-cardBorder space-y-2">
+          <div className="p-3.5 sm:p-4 rounded-xl bg-slate-900/60 border border-cardBorder space-y-2">
             <h3 className="text-xs font-bold text-danger flex items-center gap-1.5">
               <AlertCircle className="w-3.5 h-3.5" />
               Clear Local / DB Data
             </h3>
-            <p className="text-[11px] text-textSubtle leading-relaxed">
-              Permanently wipe all transactions, invoices, EPR records, budgets, and debts from the database.
+            <p className="text-[10px] sm:text-[11px] text-textSubtle leading-relaxed">
+              Permanently wipe all records from the database.
             </p>
             <button
               onClick={handleClearData}
-              className="px-4 py-1.5 rounded-lg bg-danger/15 hover:bg-danger/25 text-danger border border-danger/30 text-xs font-semibold transition cursor-pointer"
+              className="px-3.5 py-1.5 rounded-lg bg-danger/15 hover:bg-danger/25 text-danger border border-danger/30 text-xs font-semibold transition cursor-pointer"
             >
               Wipe Database
             </button>
@@ -350,37 +348,37 @@ export default function SettingsPage() {
         </div>
 
         {/* Export / Import Section */}
-        <div className="pt-4 border-t border-cardBorder/60 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="pt-3 sm:pt-4 border-t border-cardBorder/60 space-y-3 sm:space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             {/* Export */}
             <div className="space-y-2">
-              <label className="block text-xs font-bold uppercase text-textSubtle">
-                Export History & Backups
+              <label className="block text-[11px] sm:text-xs font-bold uppercase text-textSubtle">
+                Export History
               </label>
               <div className="flex items-center space-x-2">
                 <button
                   type="button"
                   onClick={() => handleExport('json')}
-                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-text flex items-center gap-1.5 transition cursor-pointer"
+                  className="px-3 sm:px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-text flex items-center gap-1.5 transition cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5 text-primary" />
-                  JSON (Schema v2)
+                  JSON
                 </button>
                 <button
                   type="button"
                   onClick={() => handleExport('csv')}
-                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-text flex items-center gap-1.5 transition cursor-pointer"
+                  className="px-3 sm:px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-text flex items-center gap-1.5 transition cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5 text-secondary" />
-                  CSV Format
+                  CSV
                 </button>
               </div>
             </div>
 
             {/* Import */}
             <div className="space-y-2">
-              <label className="block text-xs font-bold uppercase text-textSubtle">
-                Import JSON or CSV Backup
+              <label className="block text-[11px] sm:text-xs font-bold uppercase text-textSubtle">
+                Import Backup
               </label>
               <div className="relative">
                 <input
@@ -388,14 +386,14 @@ export default function SettingsPage() {
                   accept=".json,.csv"
                   onChange={handleImportFile}
                   disabled={importing}
-                  className="block w-full text-xs text-textMuted file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-white hover:file:bg-primaryDark file:cursor-pointer"
+                  className="block w-full text-xs text-textMuted file:mr-2.5 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-white hover:file:bg-primaryDark file:cursor-pointer"
                 />
               </div>
             </div>
           </div>
 
           {importResult && (
-            <div className="p-3.5 rounded-xl bg-slate-900 border border-cardBorder text-xs space-y-1">
+            <div className="p-3 rounded-xl bg-slate-900 border border-cardBorder text-xs space-y-1">
               <div className="font-bold text-secondary flex items-center gap-1">
                 <CheckCircle2 className="w-4 h-4" /> Import Complete
               </div>

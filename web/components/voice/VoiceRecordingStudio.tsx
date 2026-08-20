@@ -7,7 +7,6 @@ import {
   DollarSign,
   Receipt,
   FileSpreadsheet,
-  Sparkles,
   Settings2,
   Loader2,
   AlertCircle,
@@ -15,7 +14,6 @@ import {
 import { useWebAudioRecorder } from '@/hooks/useWebAudioRecorder';
 import { AudioVisualizer } from './AudioVisualizer';
 import { DataTemplate, ExtractedIntentResult, ExtractedReceiptResult, ExtractedDataResult, FlexibleExtractedResult } from '@/types';
-import { DEFAULT_MONITORING_DETAILS_TEMPLATE } from '@/lib/constants';
 import { TransactionConfirmModal } from '../modals/TransactionConfirmModal';
 import { ReceiptEditModal } from '../modals/ReceiptEditModal';
 import { DataEntryEditModal } from '../modals/DataEntryEditModal';
@@ -131,56 +129,56 @@ export function VoiceRecordingStudio({
 
   return (
     <>
-      <div className="bg-card border border-cardBorder rounded-2xl p-6 shadow-xl relative overflow-hidden">
+      <div className="bg-card border border-cardBorder rounded-2xl p-4 sm:p-6 shadow-xl relative overflow-hidden">
         {/* Glow backdrop decorative accent */}
-        <div className="absolute top-0 right-1/4 w-72 h-72 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 right-1/4 w-48 sm:w-72 h-48 sm:h-72 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Mode Selector Tabs */}
-        <div className="flex flex-wrap gap-2.5 mb-6 justify-center">
+        {/* Mode Selector Tabs (Horizontally scrollable on mobile) */}
+        <div className="flex items-center gap-2 mb-4 sm:mb-6 overflow-x-auto pb-1 max-w-full justify-start sm:justify-center scrollbar-none">
           <button
             onClick={() => setMode('expense')}
-            className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+            className={`flex items-center space-x-1.5 px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs font-bold shrink-0 transition cursor-pointer ${
               mode === 'expense'
                 ? 'bg-primary text-white shadow-lg shadow-primary/30 border border-primary/40'
                 : 'bg-slate-900/60 text-textMuted hover:text-text border border-cardBorder'
             }`}
           >
-            <DollarSign className="w-4 h-4" />
+            <DollarSign className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span>💰 Expense & Income</span>
           </button>
 
           <button
             onClick={() => setMode('receipt')}
-            className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+            className={`flex items-center space-x-1.5 px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs font-bold shrink-0 transition cursor-pointer ${
               mode === 'receipt'
                 ? 'bg-secondary text-white shadow-lg shadow-secondary/30 border border-secondary/40'
                 : 'bg-slate-900/60 text-textMuted hover:text-text border border-cardBorder'
             }`}
           >
-            <Receipt className="w-4 h-4" />
+            <Receipt className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span>🧾 Voice GST Invoice</span>
           </button>
 
           <button
             onClick={() => setMode('data')}
-            className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+            className={`flex items-center space-x-1.5 px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs font-bold shrink-0 transition cursor-pointer ${
               mode === 'data'
                 ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/30 border border-cyan-500/40'
                 : 'bg-slate-900/60 text-textMuted hover:text-text border border-cardBorder'
             }`}
           >
-            <FileSpreadsheet className="w-4 h-4" />
+            <FileSpreadsheet className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span>📋 Voice-to-Data EPR</span>
           </button>
         </div>
 
         {/* Sub-mode selector if in Data Entry mode */}
         {mode === 'data' && (
-          <div className="flex items-center justify-between p-3 rounded-xl bg-slate-900/80 border border-cardBorder mb-6 max-w-xl mx-auto">
-            <div className="flex items-center space-x-2">
+          <div className="flex flex-col xs:flex-row items-stretch xs:items-center justify-between p-2.5 sm:p-3 rounded-xl bg-slate-900/80 border border-cardBorder mb-4 sm:mb-6 max-w-xl mx-auto gap-2">
+            <div className="flex items-center space-x-1.5 overflow-x-auto pb-0.5">
               <button
                 onClick={() => setVoiceDataMode('flexible')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0 transition cursor-pointer ${
                   voiceDataMode === 'flexible'
                     ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40'
                     : 'text-textMuted hover:text-text'
@@ -191,7 +189,7 @@ export function VoiceRecordingStudio({
 
               <button
                 onClick={() => setVoiceDataMode('template')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0 transition cursor-pointer truncate max-w-[150px] sm:max-w-none ${
                   voiceDataMode === 'template'
                     ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40'
                     : 'text-textMuted hover:text-text'
@@ -204,7 +202,7 @@ export function VoiceRecordingStudio({
             {voiceDataMode === 'template' && (
               <button
                 onClick={() => setShowTemplateManager(true)}
-                className="text-xs text-textMuted hover:text-cyan-400 flex items-center gap-1 font-semibold transition cursor-pointer"
+                className="text-xs text-textMuted hover:text-cyan-400 flex items-center justify-center gap-1 font-semibold transition cursor-pointer py-1 px-2 rounded-lg bg-slate-800/60"
               >
                 <Settings2 className="w-3.5 h-3.5" />
                 <span>Switch</span>
@@ -214,7 +212,7 @@ export function VoiceRecordingStudio({
         )}
 
         {/* Central Recording Console */}
-        <div className="flex flex-col items-center justify-center text-center py-4 space-y-4">
+        <div className="flex flex-col items-center justify-center text-center py-2 sm:py-4 space-y-3 sm:space-y-4">
           <AudioVisualizer isRecording={recorder.state === 'Recording'} volumeLevel={recorder.volumeLevel} />
 
           {/* Glowing Microphone Button */}
@@ -222,7 +220,7 @@ export function VoiceRecordingStudio({
             <button
               onClick={handleMicPress}
               disabled={isProcessing}
-              className={`w-28 h-28 rounded-full flex items-center justify-center transition-all shadow-2xl cursor-pointer ${
+              className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full flex items-center justify-center transition-all shadow-2xl cursor-pointer ${
                 recorder.state === 'Recording'
                   ? 'bg-danger text-white animate-pulse-mic shadow-danger/40 scale-105'
                   : mode === 'expense'
@@ -233,25 +231,25 @@ export function VoiceRecordingStudio({
               } disabled:opacity-50`}
             >
               {recorder.state === 'Recording' ? (
-                <Square className="w-10 h-10 fill-current" />
+                <Square className="w-8 h-8 sm:w-10 sm:h-10 fill-current" />
               ) : isProcessing ? (
-                <Loader2 className="w-10 h-10 animate-spin" />
+                <Loader2 className="w-8 h-8 sm:w-10 sm:h-10 animate-spin" />
               ) : (
-                <Mic className="w-10 h-10" />
+                <Mic className="w-8 h-8 sm:w-10 sm:h-10" />
               )}
             </button>
           </div>
 
           {/* Status & Timer */}
           <div>
-            <div className="text-xl font-mono font-bold text-text tracking-wider">
+            <div className="text-lg sm:text-xl font-mono font-bold text-text tracking-wider">
               {formatTimer(recorder.durationSeconds)}
             </div>
             <p className="text-xs font-semibold text-textMuted mt-1">
               {recorder.state === 'Recording' ? (
                 <span className="text-danger flex items-center justify-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-danger animate-ping" />
-                  Recording Audio... Tap to Stop & Parse
+                  Recording... Tap to Stop & Parse
                 </span>
               ) : isProcessing ? (
                 <span className="text-primary flex items-center justify-center gap-1.5">
@@ -265,22 +263,22 @@ export function VoiceRecordingStudio({
           </div>
 
           {recorder.errorMessage && (
-            <div className="p-3 rounded-xl bg-danger/15 border border-danger/30 text-danger text-xs flex items-center gap-2 max-w-md">
+            <div className="p-2.5 sm:p-3 rounded-xl bg-danger/15 border border-danger/30 text-danger text-xs flex items-center gap-2 max-w-md">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{recorder.errorMessage}</span>
             </div>
           )}
 
           {/* Helper Tips */}
-          <div className="pt-2 text-xs text-textSubtle max-w-lg leading-relaxed">
+          <div className="pt-2 text-[11px] sm:text-xs text-textSubtle max-w-lg leading-relaxed px-2">
             {mode === 'expense' && (
               <p>
-                💡 <span className="font-semibold text-text">Try speaking:</span> "Purchased carrots for ₹50, onions for ₹100 via PhonePe and had pizza at Domino's for ₹300 using credit card."
+                💡 <span className="font-semibold text-text">Try speaking:</span> "Purchased carrots for ₹50, onions for ₹100 via PhonePe and had pizza for ₹300 using credit card."
               </p>
             )}
             {mode === 'receipt' && (
               <p>
-                💡 <span className="font-semibold text-text">Try speaking:</span> "Basmati rice 5 kg at 110, Sunflower oil 2 litres at 160, Toor dal 2 kg at 140, discount 50 rupees, GST 18 percent."
+                💡 <span className="font-semibold text-text">Try speaking:</span> "Basmati rice 5 kg at 110, Sunflower oil 2 litres at 160, discount 50 rupees, GST 18 percent."
               </p>
             )}
             {mode === 'data' && voiceDataMode === 'flexible' && (
@@ -290,7 +288,7 @@ export function VoiceRecordingStudio({
             )}
             {mode === 'data' && voiceDataMode === 'template' && (
               <p>
-                💡 <span className="font-semibold text-text">Try speaking:</span> "Part PRT-9042, shift 1, opening counter 14200, closing 14850, 4 cavities. Logs: 8:30 to 9:30 planned 100 produced 98 reject 2."
+                💡 <span className="font-semibold text-text">Try speaking:</span> "Part PRT-9042, shift 1, opening counter 14200, closing 14850. Logs: 8:30 to 9:30 planned 100 produced 98 reject 2."
               </p>
             )}
           </div>

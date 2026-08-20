@@ -166,65 +166,65 @@ export function DataEntryEditModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-card border border-cardBorder rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
+      <div className="bg-card border border-cardBorder rounded-t-2xl sm:rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
-        <div className="p-6 border-b border-cardBorder flex items-center justify-between bg-slate-900/50 no-print">
+        <div className="p-4 sm:p-6 border-b border-cardBorder flex items-center justify-between bg-slate-900/50 no-print">
           <div>
-            <h2 className="text-xl font-bold text-text flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-dataColor" />
-              {isFlexible ? 'Autonomous Voice-to-Data Entry' : `EPR Entry: ${template.name}`}
+            <h2 className="text-base sm:text-xl font-bold text-text flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-dataColor" />
+              {isFlexible ? 'Voice Data Entry' : `EPR: ${template.name}`}
             </h2>
-            <p className="text-xs text-textMuted mt-0.5">
+            <p className="text-[11px] sm:text-xs text-textMuted mt-0.5">
               Review extracted attributes and production table logs.
             </p>
           </div>
-          <button onClick={onClose} className="p-2 rounded-xl text-textMuted hover:text-text hover:bg-slate-800 transition">
+          <button onClick={onClose} className="p-1.5 sm:p-2 rounded-xl text-textMuted hover:text-text hover:bg-slate-800 transition">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 overflow-y-auto space-y-6 flex-1 printable-area">
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-6 flex-1 printable-area">
           {error && (
-            <div className="p-3.5 rounded-xl bg-danger/15 border border-danger/30 text-danger text-xs font-medium no-print">
+            <div className="p-3 rounded-xl bg-danger/15 border border-danger/30 text-danger text-xs font-medium no-print">
               {error}
             </div>
           )}
 
           {/* Date & Title */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl bg-slate-900/60 border border-cardBorder">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 p-3.5 sm:p-4 rounded-xl bg-slate-900/60 border border-cardBorder">
             <div>
-              <label className="block text-[11px] font-semibold uppercase text-textSubtle mb-1">
-                Record Title / Identifier
+              <label className="block text-[10px] sm:text-[11px] font-semibold uppercase text-textSubtle mb-1">
+                Record Title
               </label>
               <input
                 type="text"
                 value={isFlexible ? flexibleTitle : template.name}
                 onChange={(e) => isFlexible && setFlexibleTitle(e.target.value)}
                 disabled={!isFlexible}
-                className="w-full px-3.5 py-2 rounded-xl bg-background border border-cardBorder text-sm text-text font-semibold focus:outline-none focus:border-primary disabled:opacity-75"
+                className="w-full px-3 py-2 rounded-xl bg-background border border-cardBorder text-xs sm:text-sm text-text font-semibold focus:outline-none focus:border-primary disabled:opacity-75"
               />
             </div>
 
             <div>
-              <label className="block text-[11px] font-semibold uppercase text-textSubtle mb-1">
+              <label className="block text-[10px] sm:text-[11px] font-semibold uppercase text-textSubtle mb-1">
                 Log Date
               </label>
               <input
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-xl bg-background border border-cardBorder text-sm text-text focus:outline-none focus:border-primary"
+                className="w-full px-3 py-2 rounded-xl bg-background border border-cardBorder text-xs sm:text-sm text-text focus:outline-none focus:border-primary"
               />
             </div>
           </div>
 
           {/* Fields Grid */}
           <div>
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
               <h3 className="text-xs font-bold text-text uppercase tracking-wider">
-                Direct Extracted Fields
+                Extracted Fields
               </h3>
               {isFlexible && (
                 <button
@@ -237,7 +237,7 @@ export function DataEntryEditModal({
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3.5">
               {isFlexible
                 ? flexibleFields.map((f, idx) => (
                     <div key={f.id || idx} className="p-3 rounded-xl bg-slate-900/50 border border-cardBorder space-y-1 relative">
@@ -246,7 +246,7 @@ export function DataEntryEditModal({
                           type="text"
                           value={f.name}
                           onChange={(e) => updateFlexibleField(idx, 'name', e.target.value)}
-                          className="text-[11px] font-bold uppercase text-textSubtle bg-transparent border-b border-transparent hover:border-cardBorder focus:border-primary focus:outline-none w-3/4"
+                          className="text-[10px] sm:text-[11px] font-bold uppercase text-textSubtle bg-transparent border-b border-transparent hover:border-cardBorder focus:border-primary focus:outline-none w-3/4"
                         />
                         {flexibleFields.length > 1 && (
                           <button
@@ -267,7 +267,7 @@ export function DataEntryEditModal({
                   ))
                 : template.fields.map((f) => (
                     <div key={f.id} className="p-3 rounded-xl bg-slate-900/50 border border-cardBorder space-y-1">
-                      <label className="block text-[11px] font-bold uppercase text-textSubtle">
+                      <label className="block text-[10px] sm:text-[11px] font-bold uppercase text-textSubtle truncate">
                         {f.name} <span className="text-[10px] lowercase text-textSubtle/60">({f.extractionKey})</span>
                       </label>
                       <input
@@ -284,11 +284,11 @@ export function DataEntryEditModal({
 
           {/* Repeated Entries Table */}
           {((isFlexible && flexibleTableHeaders.length > 0) || (!isFlexible && template.hasTable)) && (
-            <div className="space-y-3">
+            <div className="space-y-2 sm:space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-bold text-text uppercase tracking-wider flex items-center gap-1.5">
                   <Table className="w-4 h-4 text-dataColor" />
-                  {isFlexible ? flexibleTableTitle : template.tableTitle || 'Repeated Logs Table'}
+                  {isFlexible ? flexibleTableTitle : template.tableTitle || 'Repeated Logs'}
                 </h3>
                 <button
                   onClick={isFlexible ? addFlexibleTableRow : addTemplateTableRow}
@@ -300,31 +300,31 @@ export function DataEntryEditModal({
               </div>
 
               <div className="border border-cardBorder rounded-xl overflow-x-auto bg-slate-900/40">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-800/80 text-[11px] font-bold uppercase text-textMuted border-b border-cardBorder">
+                <table className="w-full text-left text-xs min-w-[500px]">
+                  <thead className="bg-slate-800/80 text-[10px] sm:text-[11px] font-bold uppercase text-textMuted border-b border-cardBorder">
                     <tr>
-                      <th className="p-3 w-10">#</th>
+                      <th className="p-2.5 sm:p-3 w-8">#</th>
                       {isFlexible
                         ? flexibleTableHeaders.map((h, i) => (
-                            <th key={i} className="p-3">
+                            <th key={i} className="p-2.5 sm:p-3">
                               {h}
                             </th>
                           ))
                         : (template.tableFields || []).map((col) => (
-                            <th key={col.id} className="p-3">
+                            <th key={col.id} className="p-2.5 sm:p-3">
                               {col.name}
                             </th>
                           ))}
-                      <th className="p-3 w-10 text-center no-print"></th>
+                      <th className="p-2.5 sm:p-3 w-8 text-center no-print"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-cardBorder/60">
                     {isFlexible
                       ? flexibleTableRows.map((row, rowIdx) => (
                           <tr key={rowIdx} className="hover:bg-slate-800/30 transition">
-                            <td className="p-3 text-textSubtle">{rowIdx + 1}</td>
+                            <td className="p-2.5 sm:p-3 text-textSubtle">{rowIdx + 1}</td>
                             {flexibleTableHeaders.map((_, colIdx) => (
-                              <td key={colIdx} className="p-2">
+                              <td key={colIdx} className="p-1.5 sm:p-2">
                                 <input
                                   type="text"
                                   value={row[colIdx] ?? ''}
@@ -333,7 +333,7 @@ export function DataEntryEditModal({
                                 />
                               </td>
                             ))}
-                            <td className="p-2 text-center no-print">
+                            <td className="p-1.5 sm:p-2 text-center no-print">
                               <button
                                 onClick={() => deleteFlexibleTableRow(rowIdx)}
                                 className="text-textSubtle hover:text-danger p-1"
@@ -345,9 +345,9 @@ export function DataEntryEditModal({
                         ))
                       : tableRows.map((row, rowIdx) => (
                           <tr key={rowIdx} className="hover:bg-slate-800/30 transition">
-                            <td className="p-3 text-textSubtle">{rowIdx + 1}</td>
+                            <td className="p-2.5 sm:p-3 text-textSubtle">{rowIdx + 1}</td>
                             {(template.tableFields || []).map((col) => (
-                              <td key={col.id} className="p-2">
+                              <td key={col.id} className="p-1.5 sm:p-2">
                                 <input
                                   type={col.type === 'number' ? 'number' : 'text'}
                                   value={row[col.extractionKey] ?? ''}
@@ -356,7 +356,7 @@ export function DataEntryEditModal({
                                 />
                               </td>
                             ))}
-                            <td className="p-2 text-center no-print">
+                            <td className="p-1.5 sm:p-2 text-center no-print">
                               <button
                                 onClick={() => deleteTemplateTableRow(rowIdx)}
                                 className="text-textSubtle hover:text-danger p-1"
@@ -374,34 +374,34 @@ export function DataEntryEditModal({
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-cardBorder bg-slate-900/50 flex items-center justify-between no-print">
+        <div className="p-4 sm:p-6 border-t border-cardBorder bg-slate-900/50 flex items-center justify-between no-print gap-2">
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2.5 rounded-xl border border-cardBorder text-textMuted hover:text-text hover:bg-slate-800 text-xs font-semibold transition"
+            className="px-4 py-2 rounded-xl border border-cardBorder text-textMuted hover:text-text hover:bg-slate-800 text-xs font-semibold transition"
           >
             Close
           </button>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2 sm:space-x-3">
             <button
               type="button"
               disabled={saving}
               onClick={() => handleSave(true)}
-              className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-cardBorder text-text text-xs font-semibold flex items-center gap-2 transition cursor-pointer"
+              className="px-3 sm:px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-cardBorder text-text text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
             >
-              <Printer className="w-4 h-4 text-textMuted" />
-              <span>Save & Print / PDF</span>
+              <Printer className="w-3.5 h-3.5 text-textMuted" />
+              <span>Print</span>
             </button>
 
             <button
               type="button"
               disabled={saving}
               onClick={() => handleSave(false)}
-              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-600 to-dataColor hover:from-dataColor hover:to-cyan-400 text-slate-950 font-bold text-xs shadow-lg shadow-dataColor/20 flex items-center gap-2 transition disabled:opacity-50 cursor-pointer"
+              className="px-4 sm:px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-dataColor hover:from-dataColor hover:to-cyan-400 text-slate-950 font-bold text-xs shadow-lg shadow-dataColor/20 flex items-center gap-1.5 transition disabled:opacity-50 cursor-pointer"
             >
-              <Save className="w-4 h-4" />
-              <span>{saving ? 'Saving...' : 'Save EPR Record'}</span>
+              <Save className="w-3.5 h-3.5" />
+              <span>{saving ? 'Saving...' : 'Save'}</span>
             </button>
           </div>
         </div>
