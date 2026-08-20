@@ -63,6 +63,7 @@ export interface ExtractedIntentResult {
 export interface ReceiptItem {
   id: string;
   name: string;
+  hsnCode?: string | null;
   quantity: number;
   unit: string;
   unitPrice: number;
@@ -71,6 +72,7 @@ export interface ReceiptItem {
 
 export interface ExtractedReceiptItem {
   name: string;
+  hsn_code?: string | null;
   quantity: number;
   unit: string;
   unit_price: number;
@@ -83,6 +85,8 @@ export interface ExtractedReceiptResult {
   items: ExtractedReceiptItem[];
   customer_name?: string | null;
   customer_phone?: string | null;
+  customer_address?: string | null;
+  customer_gstin?: string | null;
   discount?: number | null;
   tax?: number | null;
   tax_percent?: number | null;
@@ -97,6 +101,8 @@ export interface Receipt {
   date: string; // YYYY-MM-DD
   customerName?: string | null;
   customerPhone?: string | null;
+  customerAddress?: string | null;
+  customerGstin?: string | null;
   items: ReceiptItem[];
   subtotal: number;
   discount: number;
@@ -108,6 +114,8 @@ export interface Receipt {
   igst: number;
   grandTotal: number;
   currency: string;
+  notes?: string | null;
+  format?: 'standard' | 'basic_tax';
   transcript?: string | null;
   createdAt: string;
 }
@@ -141,6 +149,16 @@ export interface RecurringPayment {
   category: string;
 }
 
+export type InvoiceFormatType = 'standard' | 'basic_tax';
+
+export interface BankDetails {
+  bankName: string;
+  accountHolder: string;
+  accountNumber: string;
+  ifsc: string;
+  branch: string;
+}
+
 export interface UserSettings {
   currency: string;
   currencySymbol: string;
@@ -149,6 +167,8 @@ export interface UserSettings {
   businessAddress: string;
   gstin: string;
   receiptPrefix: string;
+  invoiceFormat?: InvoiceFormatType;
+  bankDetails?: BankDetails;
   customGroqApiKey?: string;
 }
 

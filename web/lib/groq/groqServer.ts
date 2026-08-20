@@ -327,8 +327,8 @@ STRICT EXTRACTION RULES:
       return this.localHeuristicReceiptParser(transcript);
     }
 
-    const systemPrompt = `You are a voice receipt item extractor.
-Parse spoken items, quantities, units, and unit prices into a valid JSON object.
+    const systemPrompt = `You are an expert Tax Invoice & Voice Receipt Extractor.
+Parse spoken items, quantities, units, unit prices, HSN/SAC codes, customer Bill To details (name, phone, address, GSTIN), discount, and GST/IGST into a valid JSON object.
 
 Return ONLY a single valid raw JSON object matching this structure:
 
@@ -336,7 +336,8 @@ Return ONLY a single valid raw JSON object matching this structure:
   "intent": "create_receipt",
   "items": [
     {
-      "name": "Rice",
+      "name": "Basmati Rice",
+      "hsn_code": "1006",
       "quantity": 2,
       "unit": "kg",
       "unit_price": 100
@@ -344,20 +345,24 @@ Return ONLY a single valid raw JSON object matching this structure:
   ],
   "customer_name": null,
   "customer_phone": null,
+  "customer_address": null,
+  "customer_gstin": null,
   "discount": 0,
   "tax_percent": 18,
   "tax_type": "gst",
   "currency": "INR"
 }
 
-TAX EXTRACTION RULES:
-1. Extract tax as a PERCENTAGE (e.g. "GST 18%" → tax_percent: 18). Do NOT compute the rupee tax amount yourself.
-2. tax_type values:
-   - "igst" → if user explicitly says "IGST"
+RULES:
+1. Extract "hsn_code" if mentioned (e.g. "HSN 1006" or "SAC 9983" or a 4-8 digit code for the product/service), else null.
+2. Extract customer Bill-To details if mentioned: "customer_name", "customer_phone", "customer_address", "customer_gstin".
+3. Extract tax as a PERCENTAGE (e.g. "GST 18%" → tax_percent: 18). Do NOT compute the rupee tax amount yourself.
+4. tax_type values:
+   - "igst" → if user explicitly says "IGST" or inter-state
    - "gst" → if user says "GST", "tax", "CGST", "SGST" or any tax without specifying IGST
    - "none" → if no tax is mentioned at all (set tax_percent: 0)
-3. discount is a flat rupee amount if mentioned, else 0.
-4. Do NOT calculate total sums or tax rupee amounts; only extract individual line items and the tax percentage.`;
+5. discount is a flat rupee amount if mentioned, else 0.
+6. Do NOT calculate grand totals; only extract individual line items, HSN, and tax percentage.`;
 
     try {
       return await this.executeWithFailover('Voice Receipt Extraction', customKey, async (apiKey) => {
@@ -874,6 +879,8 @@ Allowed period values: "this_month", "last_month", "all_time".`;
       items: items.length > 0 ? items : [{ name: 'Sample Item', quantity: 1, unit: 'pcs', unit_price: 100 }],
       customer_name: null,
       customer_phone: null,
+      customer_address: null,
+      customer_gstin: null,
       discount: 0,
       tax: 0,
       tax_percent: 0,

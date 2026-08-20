@@ -150,8 +150,11 @@ export default function InvoicesPage() {
             >
               <div className="flex items-center justify-between pb-2.5 border-b border-cardBorder/60">
                 <div>
-                  <h3 className="text-xs sm:text-sm font-bold text-text flex items-center gap-1.5 flex-wrap">
-                    <span className="font-mono text-primary">{rcpt.receiptNumber}</span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-mono text-primary font-bold text-xs sm:text-sm">{rcpt.receiptNumber}</span>
+                    <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-slate-800 text-textMuted border border-cardBorder">
+                      {rcpt.format === 'basic_tax' ? 'Basic Tax (A4)' : 'Standard'}
+                    </span>
                     {rcpt.taxType === 'gst' && (
                       <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-secondary/15 text-secondary border border-secondary/30">
                         GST ({rcpt.taxPercent}%)
@@ -162,11 +165,16 @@ export default function InvoicesPage() {
                         IGST ({rcpt.taxPercent}%)
                       </span>
                     )}
-                  </h3>
+                  </div>
                   <p className="text-xs text-textMuted mt-0.5">
                     Billed to: <span className="font-semibold text-text">{rcpt.customerName || 'Cash Customer'}</span>
                     {rcpt.customerPhone && <span className="text-textSubtle"> ({rcpt.customerPhone})</span>}
                   </p>
+                  {rcpt.customerGstin && (
+                    <p className="text-[10px] text-textSubtle font-mono mt-0.5">
+                      GSTIN: {rcpt.customerGstin}
+                    </p>
+                  )}
                 </div>
 
                 <div className="text-right shrink-0">
