@@ -1,0 +1,16 @@
+{
+  "/api/groq/status/route": "app/api/groq/status/route.js",
+  "/api/transactions/route": "app/api/transactions/route.js",
+  "/api/data-entries/route": "app/api/data-entries/route.js",
+  "/api/templates/route": "app/api/templates/route.js",
+  "/api/receipts/route": "app/api/receipts/route.js",
+  "/api/budgets/route": "app/api/budgets/route.js",
+  "/api/debts/route": "app/api/debts/route.js",
+  "/api/settings/route": "app/api/settings/route.js",
+  "/page": "app/page.js",
+  "/history/page": "app/history/page.js",
+  "/invoices/page": "app/invoices/page.js",
+  "/analytics/page": "app/analytics/page.js",
+  "/templates/page": "app/templates/page.js",
+  "/settings/page": "app/settings/page.js"
+}
