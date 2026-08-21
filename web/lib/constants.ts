@@ -77,11 +77,12 @@ export const DEFAULT_SETTINGS: UserSettings = {
   },
 };
 
-export const DEFAULT_MONITORING_DETAILS_TEMPLATE: DataTemplate = {
-  id: 'template_monitoring_details_default',
-  name: 'Monitoring Details',
-  description: 'Production run monitoring log with counters, cycle time, cavities, weights & hourly logs.',
-  isDefault: true,
+// 1. Indepth Template (formerly Monitoring Details)
+export const INDEPTH_TEMPLATE: DataTemplate = {
+  id: 'template_indepth_monitoring',
+  name: 'Indepth Template',
+  description: 'Detailed production run monitoring log with counters, cycle time, cavities, weights & hourly logs.',
+  isDefault: false,
   fields: [
     { id: 'f_part_no', name: 'Part No', extractionKey: 'part_no', type: 'text', placeholder: 'e.g. PRT-4029' },
     { id: 'f_description', name: 'Description', extractionKey: 'description', type: 'text', placeholder: 'e.g. Housing Gear Box' },
@@ -112,6 +113,33 @@ export const DEFAULT_MONITORING_DETAILS_TEMPLATE: DataTemplate = {
   updatedAt: '2026-08-20T00:00:00.000Z',
 };
 
+// 2. New Default Template (No table, concise 9 fields)
+export const NEW_DEFAULT_TEMPLATE: DataTemplate = {
+  id: 'template_default_concise',
+  name: 'Default Template',
+  description: 'Standard daily production log with machine, part, description, material, quantities, date, and shift.',
+  isDefault: true,
+  fields: [
+    { id: 'f_machine_name', name: 'Machine Name', extractionKey: 'machine_name', type: 'text', placeholder: 'e.g. Injection Machine 01' },
+    { id: 'f_part_no', name: 'Part No', extractionKey: 'part_no', type: 'text', placeholder: 'e.g. PRT-4029' },
+    { id: 'f_description', name: 'Description', extractionKey: 'description', type: 'number', placeholder: 'e.g. 101' },
+    { id: 'f_raw_material', name: 'Raw Material', extractionKey: 'raw_material', type: 'text', placeholder: 'e.g. ABS Resin Grade A' },
+    { id: 'f_prod_n_qty', name: 'Prod n Qty', extractionKey: 'prod_n_qty', type: 'text', placeholder: 'e.g. 500 pcs' },
+    { id: 'f_reg_n_qty', name: 'Reg n Qty', extractionKey: 'reg_n_qty', type: 'text', placeholder: 'e.g. 12 pcs' },
+    { id: 'f_ok_qty', name: 'OK Qty', extractionKey: 'ok_qty', type: 'text', placeholder: 'e.g. 488 pcs' },
+    { id: 'f_date', name: 'Date', extractionKey: 'date', type: 'text', placeholder: 'e.g. 21-08-2026' },
+    { id: 'f_shift', name: 'Shift', extractionKey: 'shift', type: 'text', placeholder: 'e.g. Shift A' },
+  ],
+  hasTable: false,
+  tableFields: [],
+  createdAt: '2026-08-21T00:00:00.000Z',
+  updatedAt: '2026-08-21T00:00:00.000Z',
+};
+
+// Aliases
+export const DEFAULT_MONITORING_DETAILS_TEMPLATE = NEW_DEFAULT_TEMPLATE;
+export const SYSTEM_DEFAULT_TEMPLATES = [NEW_DEFAULT_TEMPLATE, INDEPTH_TEMPLATE];
+
 export const COLORS = {
   primary: '#6366F1',
   primaryDark: '#4F46E5',
@@ -125,12 +153,5 @@ export const COLORS = {
   textMuted: '#94A3B8',
   textSubtle: '#64748B',
   inputBg: '#0F172A',
-  success: '#10B981',
-  warning: '#F59E0B',
-  expenseColor: '#F87171',
-  incomeColor: '#34D399',
-  transferColor: '#60A5FA',
   dataColor: '#06B6D4',
-  dataColorDark: '#0891B2',
-  dataColorLight: '#22D3EE',
 };

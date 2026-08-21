@@ -425,7 +425,7 @@ export default function SettingsPage() {
               </span>
             ) : (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30">
-                Offline Mode
+               
               </span>
             )}
           </div>

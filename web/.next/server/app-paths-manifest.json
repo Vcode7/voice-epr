@@ -1,1 +1,6 @@
-{}
+{
+  "/api/groq/transcribe/route": "app/api/groq/transcribe/route.js",
+  "/api/groq/custom-data/route": "app/api/groq/custom-data/route.js",
+  "/page": "app/page.js",
+  "/voice-data/page": "app/voice-data/page.js"
+}

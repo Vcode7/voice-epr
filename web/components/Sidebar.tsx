@@ -73,15 +73,7 @@ export function Sidebar() {
       </div>
 
       {/* Footer Info Box */}
-      <div className="p-4 border-t border-cardBorder m-4 bg-slate-900/60 rounded-xl border">
-        <div className="flex items-center space-x-2 text-accent mb-1">
-          <Sparkles className="w-4 h-4" />
-          <span className="text-xs font-semibold">MongoDB Atlas Sync</span>
-        </div>
-        <p className="text-[11px] text-textSubtle leading-relaxed">
-          Real-time synchronized single source of truth for Web & React Native Mobile.
-        </p>
-      </div>
+      
     </aside>
   );
 }

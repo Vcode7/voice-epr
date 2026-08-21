@@ -1,27 +1,27 @@
 import { ITemplateRepository } from './ITemplateRepository';
 import { DataTemplate } from '../types';
 import { storageWrapper } from '../storage/asyncStorageWrapper';
-import { STORAGE_KEYS, DEFAULT_MONITORING_DETAILS_TEMPLATE } from '../constants';
+import { STORAGE_KEYS, DEFAULT_MONITORING_DETAILS_TEMPLATE, SYSTEM_DEFAULT_TEMPLATES } from '../constants';
 import { ApiClient } from '../services/api/apiClient';
 
 export class AsyncStorageTemplateRepository implements ITemplateRepository {
   private async loadLocal(): Promise<DataTemplate[]> {
     const json = await storageWrapper.getItem(STORAGE_KEYS.TEMPLATES);
     if (!json) {
-      const initial = [DEFAULT_MONITORING_DETAILS_TEMPLATE];
+      const initial = SYSTEM_DEFAULT_TEMPLATES;
       await this.saveLocal(initial);
       return initial;
     }
     try {
       const parsed: DataTemplate[] = JSON.parse(json);
       if (!Array.isArray(parsed) || parsed.length === 0) {
-        const initial = [DEFAULT_MONITORING_DETAILS_TEMPLATE];
+        const initial = SYSTEM_DEFAULT_TEMPLATES;
         await this.saveLocal(initial);
         return initial;
       }
       return parsed;
     } catch {
-      const initial = [DEFAULT_MONITORING_DETAILS_TEMPLATE];
+      const initial = SYSTEM_DEFAULT_TEMPLATES;
       await this.saveLocal(initial);
       return initial;
     }

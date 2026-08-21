@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Layers, Copy, Trash2, CheckCircle2, RotateCcw } from 'lucide-react';
 import { DataTemplate } from '@/types';
+import { DEFAULT_MONITORING_DETAILS_TEMPLATE } from '@/lib/constants';
 import { TemplateEditModal } from './TemplateEditModal';
 
 interface TemplateManagerModalProps {
@@ -16,7 +17,7 @@ export function TemplateManagerModal({
   onSelectActive,
   onClose,
 }: TemplateManagerModalProps) {
-  const [templates, setTemplates] = useState<DataTemplate[]>([]);
+  const [templates, setTemplates] = useState<DataTemplate[]>([DEFAULT_MONITORING_DETAILS_TEMPLATE]);
   const [loading, setLoading] = useState(true);
   const [editingTemplate, setEditingTemplate] = useState<DataTemplate | null | undefined>(undefined);
 
@@ -25,9 +26,14 @@ export function TemplateManagerModal({
       setLoading(true);
       const res = await fetch('/api/templates');
       const data = await res.json();
-      setTemplates(data);
+      if (Array.isArray(data) && data.length > 0) {
+        setTemplates(data);
+      } else {
+        setTemplates([DEFAULT_MONITORING_DETAILS_TEMPLATE]);
+      }
     } catch (e) {
       console.error('Failed to load templates:', e);
+      setTemplates([DEFAULT_MONITORING_DETAILS_TEMPLATE]);
     } finally {
       setLoading(false);
     }
@@ -68,6 +74,10 @@ export function TemplateManagerModal({
     fetchTemplates();
   };
 
+  const safeTemplates = Array.isArray(templates) && templates.length > 0
+    ? templates
+    : [DEFAULT_MONITORING_DETAILS_TEMPLATE];
+
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
@@ -83,7 +93,7 @@ export function TemplateManagerModal({
                 Select active template for voice EPR dictation.
               </p>
             </div>
-            <button onClick={onClose} className="p-1.5 sm:p-2 rounded-xl text-textMuted hover:text-text hover:bg-slate-800 transition">
+            <button onClick={onClose} className="p-1.5 sm:p-2 rounded-xl text-textMuted hover:text-text hover:bg-slate-800 transition cursor-pointer">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -92,7 +102,7 @@ export function TemplateManagerModal({
           <div className="p-4 sm:p-6 overflow-y-auto space-y-3 sm:space-y-4 flex-1">
             <div className="flex items-center justify-between">
               <span className="text-[11px] sm:text-xs font-bold text-text uppercase tracking-wider">
-                Templates ({templates.length})
+                Templates ({safeTemplates.length})
               </span>
               <button
                 onClick={() => setEditingTemplate(null)}
@@ -107,7 +117,7 @@ export function TemplateManagerModal({
               <div className="py-12 text-center text-xs text-textMuted">Loading templates...</div>
             ) : (
               <div className="grid grid-cols-1 gap-2.5 sm:gap-3.5">
-                {templates.map((tmpl) => {
+                {safeTemplates.map((tmpl) => {
                   const isActive = tmpl.id === activeTemplateId;
 
                   return (
@@ -136,7 +146,7 @@ export function TemplateManagerModal({
                         </div>
                         {tmpl.description && <p className="text-xs text-textSubtle">{tmpl.description}</p>}
                         <div className="flex items-center gap-2 text-[10px] sm:text-[11px] text-textMuted pt-0.5">
-                          <span>{tmpl.fields.length} fields</span>
+                          <span>{tmpl.fields?.length || 0} fields</span>
                           <span>•</span>
                           <span>{tmpl.hasTable ? `${tmpl.tableFields?.length || 0} table cols` : 'No table'}</span>
                         </div>
@@ -184,7 +194,7 @@ export function TemplateManagerModal({
           <div className="p-3.5 sm:p-5 border-t border-cardBorder bg-slate-900/50 flex items-center justify-between">
             <button
               onClick={handleResetDefaults}
-              className="text-[11px] sm:text-xs text-textSubtle hover:text-text flex items-center gap-1.5 transition"
+              className="text-[11px] sm:text-xs text-textSubtle hover:text-text flex items-center gap-1.5 transition cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>Reset Defaults</span>
@@ -192,7 +202,7 @@ export function TemplateManagerModal({
 
             <button
               onClick={onClose}
-              className="px-4 py-1.5 sm:py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-text transition"
+              className="px-4 py-1.5 sm:py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-text transition cursor-pointer"
             >
               Done
             </button>

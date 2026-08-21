@@ -20,10 +20,13 @@ import {
   isThisWeek,
 } from '@/lib/utils/dateUtils';
 import { TransactionConfirmModal } from '@/components/modals/TransactionConfirmModal';
-import { DataEntryEditModal } from '@/components/modals/DataEntryEditModal';
+import { BatchDataEntryViewModal } from '@/components/modals/BatchDataEntryViewModal';
+import { UserSettings } from '@/types';
+import { DEFAULT_SETTINGS } from '@/lib/constants';
 
 export default function HistoryPage() {
   const [tab, setTab] = useState<'transactions' | 'data'>('transactions');
+  const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
 
   // Transactions State
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -44,18 +47,21 @@ export default function HistoryPage() {
   const fetchHistory = useCallback(async () => {
     try {
       setLoading(true);
-      const [txRes, entryRes, tmplRes] = await Promise.all([
+      const [txRes, entryRes, tmplRes, setRes] = await Promise.all([
         fetch('/api/transactions'),
         fetch('/api/data-entries'),
         fetch('/api/templates'),
+        fetch('/api/settings'),
       ]);
       const txs = await txRes.json();
       const entrs = await entryRes.json();
       const tmpls = await tmplRes.json();
+      const sets = await setRes.json();
 
       if (Array.isArray(txs)) setTransactions(txs);
       if (Array.isArray(entrs)) setEntries(entrs);
       if (Array.isArray(tmpls)) setTemplates(tmpls);
+      if (sets && !sets.error) setSettings(sets);
     } catch (e) {
       console.error('Failed to fetch history:', e);
     } finally {
@@ -418,11 +424,14 @@ export default function HistoryPage() {
                             <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-slate-800 text-cyan-400 border border-cyan-500/30">
                               {entry.isFlexible ? 'Flexible' : entry.templateName}
                             </span>
+                            <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/30">
+                              {entry.totalEntries || entry.entries?.length || 1} {(entry.totalEntries || entry.entries?.length || 1) === 1 ? 'Entry' : 'Entries'}
+                            </span>
                           </div>
 
                           <div className="flex items-center gap-1.5 text-[11px] text-textMuted mt-0.5">
                             <span>
-                              {entry.isFlexible
+                              {entry.entries?.length ? `${entry.entries.length} child entries` : entry.isFlexible
                                 ? `${entry.flexibleFields?.length || 0} fields`
                                 : `${Object.keys(entry.fieldValues || {}).length} fields`}
                             </span>
@@ -449,13 +458,15 @@ export default function HistoryPage() {
                               e.stopPropagation();
                               setEditingEntry(entry);
                             }}
-                            className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-textSubtle hover:text-text transition"
+                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-400 hover:text-text transition cursor-pointer"
+                            title="View Parent Record & Child Entries"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={(e) => handleDeleteEntry(entry.id, e)}
-                            className="p-1 rounded-lg bg-slate-800 hover:bg-danger/20 hover:text-danger text-textSubtle transition"
+                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-danger/20 hover:text-danger text-textSubtle transition cursor-pointer"
+                            title="Delete Record"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -493,11 +504,11 @@ export default function HistoryPage() {
       )}
 
       {editingEntry && (
-        <DataEntryEditModal
-          existingRecord={editingEntry}
-          template={templates.find((t) => t.id === editingEntry.templateId) || templates[0]}
+        <BatchDataEntryViewModal
+          record={editingEntry}
+          settings={settings}
           onClose={() => setEditingEntry(null)}
-          onSaved={() => {
+          onDeleted={() => {
             setEditingEntry(null);
             fetchHistory();
           }}

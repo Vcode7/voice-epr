@@ -502,9 +502,9 @@ export function DataEntryEditModal({
               type="button"
               disabled={saving}
               onClick={() => handleSave(false)}
-              className="px-4 sm:px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-dataColor hover:from-dataColor hover:to-cyan-400 text-slate-950 font-bold text-xs shadow-lg shadow-dataColor/20 flex items-center gap-1.5 transition disabled:opacity-50 cursor-pointer"
+              className="px-4 sm:px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-400/50 hover:ring-emerald-300 flex items-center gap-1.5 transition disabled:opacity-50 cursor-pointer active:scale-95"
             >
-              <Save className="w-3.5 h-3.5" />
+              <Save className="w-3.5 h-3.5 text-slate-950 stroke-[2.5]" />
               <span>{saving ? 'Saving...' : 'Save Record'}</span>
             </button>
           </div>

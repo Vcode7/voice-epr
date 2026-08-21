@@ -33,20 +33,7 @@ export function Navbar() {
             </span>
           </Link>
 
-          {/* Desktop & Mobile Status Badge */}
-          <div className="flex items-center space-x-2 text-[11px] sm:text-xs">
-            {keyStatus.isConfigured ? (
-              <span className="flex items-center gap-1 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-secondary/15 text-secondary border border-secondary/30 font-medium">
-                <ShieldCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                <span className="hidden xs:inline">Groq AI</span> Online
-              </span>
-            ) : (
-              <span className="flex items-center gap-1 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 font-medium">
-                <AlertCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                Offline
-              </span>
-            )}
-          </div>
+          
         </div>
 
         <div className="flex items-center space-x-2 sm:space-x-3">

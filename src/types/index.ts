@@ -235,6 +235,8 @@ export interface DataEntryRecord {
   tableHeaders?: string[]; // List of column names for flexible table
   tableRows: Array<Record<string, any>> | Array<any[]>; // Array of row objects or arrays of cell values
   rawTranscript?: string | null;
+  entries?: any[];
+  totalEntries?: number;
   date: string;             // YYYY-MM-DD
   createdAt: string;        // ISO timestamp
   updatedAt: string;        // ISO timestamp

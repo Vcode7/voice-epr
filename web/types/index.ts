@@ -247,6 +247,8 @@ export interface DataEntryRecord {
   tableHeaders?: string[];
   tableRows: Array<Record<string, any>> | Array<any[]>;
   rawTranscript?: string | null;
+  entries?: SessionDataEntry[];
+  totalEntries?: number;
   date: string;
   createdAt: string;
   updatedAt: string;
@@ -272,3 +274,21 @@ export interface FlexibleExtractedResult {
   table?: FlexibleTable | null;
   raw_transcript?: string;
 }
+
+export interface SessionDataEntry {
+  id: string;
+  entryNumber: number;
+  mode: 'template' | 'flexible';
+  templateId?: string;
+  templateName?: string;
+  title?: string;
+  fieldValues: Record<string, any>;
+  flexibleFields?: FlexibleField[];
+  tableTitle?: string;
+  tableHeaders?: string[];
+  tableRows?: Array<Record<string, any>> | Array<any[]>;
+  rawTranscript?: string | null;
+  audioUrl?: string | null;
+  createdAt: string;
+}
+

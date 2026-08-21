@@ -8,7 +8,7 @@ import {
   DataEntryRecord,
   UserSettings,
 } from '../../types';
-import { DEFAULT_SETTINGS, DEFAULT_MONITORING_DETAILS_TEMPLATE } from '../constants';
+import { DEFAULT_SETTINGS, DEFAULT_MONITORING_DETAILS_TEMPLATE, NEW_DEFAULT_TEMPLATE, INDEPTH_TEMPLATE } from '../constants';
 
 // In-Memory fallback store if MongoDB URI is not configured or in offline mode
 const memoryStore = {
@@ -452,17 +452,41 @@ export const dbTemplates = {
     const db = await getDb();
     if (!db) {
       if (memoryStore.templates.length === 0) {
-        memoryStore.templates = [DEFAULT_MONITORING_DETAILS_TEMPLATE];
+        memoryStore.templates = [NEW_DEFAULT_TEMPLATE, INDEPTH_TEMPLATE];
       }
       return [...memoryStore.templates];
     }
 
     const docs = await db.collection<DataTemplate>('templates').find({}).toArray();
     if (docs.length === 0) {
-      // Seed default template
-      await db.collection('templates').insertOne(DEFAULT_MONITORING_DETAILS_TEMPLATE as any);
-      return [DEFAULT_MONITORING_DETAILS_TEMPLATE];
+      // Seed default and indepth templates
+      await db.collection('templates').insertMany([NEW_DEFAULT_TEMPLATE, INDEPTH_TEMPLATE] as any);
+      return [NEW_DEFAULT_TEMPLATE, INDEPTH_TEMPLATE];
     }
+
+    // Auto-migrate: ensure NEW_DEFAULT_TEMPLATE and INDEPTH_TEMPLATE exist in database
+    const hasDefault = docs.some((d) => d.id === NEW_DEFAULT_TEMPLATE.id);
+    const hasIndepth = docs.some((d) => d.id === INDEPTH_TEMPLATE.id || d.name === 'Indepth Template');
+
+    if (!hasDefault || !hasIndepth) {
+      if (!hasDefault) {
+        await db.collection('templates').updateOne(
+          { id: NEW_DEFAULT_TEMPLATE.id },
+          { $set: NEW_DEFAULT_TEMPLATE },
+          { upsert: true }
+        );
+      }
+      if (!hasIndepth) {
+        await db.collection('templates').updateOne(
+          { id: INDEPTH_TEMPLATE.id },
+          { $set: INDEPTH_TEMPLATE },
+          { upsert: true }
+        );
+      }
+      const updatedDocs = await db.collection<DataTemplate>('templates').find({}).toArray();
+      return updatedDocs.map(({ _id, ...rest }: any) => rest as DataTemplate);
+    }
+
     return docs.map(({ _id, ...rest }: any) => rest as DataTemplate);
   },
 
@@ -494,7 +518,7 @@ export const dbTemplates = {
   },
 
   async delete(id: string): Promise<boolean> {
-    if (id === DEFAULT_MONITORING_DETAILS_TEMPLATE.id) {
+    if (id === NEW_DEFAULT_TEMPLATE.id) {
       return false; // Protect default template
     }
     const db = await getDb();
@@ -511,12 +535,12 @@ export const dbTemplates = {
   async resetDefaults(): Promise<DataTemplate[]> {
     const db = await getDb();
     if (!db) {
-      memoryStore.templates = [DEFAULT_MONITORING_DETAILS_TEMPLATE];
+      memoryStore.templates = [NEW_DEFAULT_TEMPLATE, INDEPTH_TEMPLATE];
       return memoryStore.templates;
     }
     await db.collection('templates').deleteMany({});
-    await db.collection('templates').insertOne(DEFAULT_MONITORING_DETAILS_TEMPLATE as any);
-    return [DEFAULT_MONITORING_DETAILS_TEMPLATE];
+    await db.collection('templates').insertMany([NEW_DEFAULT_TEMPLATE, INDEPTH_TEMPLATE] as any);
+    return [NEW_DEFAULT_TEMPLATE, INDEPTH_TEMPLATE];
   },
 };
 
@@ -561,6 +585,8 @@ export const dbDataEntries = {
       tableHeaders: data.tableHeaders || undefined,
       tableRows: data.tableRows || [],
       rawTranscript: data.rawTranscript || null,
+      entries: data.entries || undefined,
+      totalEntries: data.totalEntries || (data.entries ? data.entries.length : 1),
       date: data.date || new Date().toISOString().split('T')[0],
       createdAt: data.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
