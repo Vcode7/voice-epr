@@ -42,11 +42,15 @@ export default function SettingsPage() {
     hasCustomKey: boolean;
     isConfigured: boolean;
     activeKeyType: string;
+    totalConfiguredKeys?: number;
+    keyLabels?: string[];
   }>({
     hasEnvKey: false,
     hasCustomKey: false,
     isConfigured: false,
     activeKeyType: 'none',
+    totalConfiguredKeys: 0,
+    keyLabels: [],
   });
 
   const [saving, setSaving] = useState(false);
@@ -421,17 +425,17 @@ export default function SettingsPage() {
             {keyStatus.isConfigured ? (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-secondary/15 text-secondary border border-secondary/30 flex items-center gap-1">
                 <ShieldCheck className="w-3 h-3" />
-                Active ({keyStatus.activeKeyType})
+                Active ({keyStatus.totalConfiguredKeys || 1} {(keyStatus.totalConfiguredKeys || 1) === 1 ? 'Key' : 'Keys Failover'})
               </span>
             ) : (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30">
-               
+                Not Configured
               </span>
             )}
           </div>
 
           <p className="text-[11px] sm:text-xs text-textSubtle leading-relaxed">
-            Multi-tier automatic failover across primary and backup keys.
+            Multi-tier automatic failover across {keyStatus.totalConfiguredKeys && keyStatus.totalConfiguredKeys > 1 ? `${keyStatus.totalConfiguredKeys} primary & fallback keys` : 'primary and backup keys'} if rate limits (429/TPM/RPM) are encountered.
           </p>
 
           <div>

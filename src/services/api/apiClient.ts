@@ -120,6 +120,8 @@ export class ApiClient {
     hasCustomKey: boolean;
     isConfigured: boolean;
     activeKeyType: string;
+    totalConfiguredKeys?: number;
+    keyLabels?: string[];
   }> {
     return this.request('/api/groq/status');
   }

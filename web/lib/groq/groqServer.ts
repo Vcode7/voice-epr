@@ -34,6 +34,8 @@ export interface KeyStatusInfo {
   hasCustomKey: boolean;
   isConfigured: boolean;
   activeKeyType: 'primary_env' | 'backup_custom' | 'none';
+  totalConfiguredKeys?: number;
+  keyLabels?: string[];
 }
 
 interface GroqKeyEntry {
@@ -50,15 +52,50 @@ export class GroqServer {
     const addKey = (rawKey: string | undefined | null, label: string) => {
       if (!rawKey) return;
       const trimmed = rawKey.trim();
-      if (trimmed !== '' && !trimmed.includes('your_groq_api_key') && !seen.has(trimmed)) {
+      if (
+        trimmed !== '' &&
+        !trimmed.includes('your_groq_api_key') &&
+        !trimmed.includes('your_fallback_key') &&
+        !seen.has(trimmed)
+      ) {
         seen.add(trimmed);
         keys.push({ key: trimmed, label });
       }
     };
 
+    // Base primary key
     addKey(process.env.GROQ_API_KEY, 'Base Primary .env Key');
+
+    // Static fallback env references for Next.js bundler (1 through 10)
     addKey(process.env.GROQ_API_KEY_FALLBACK1, '.env Fallback Key #1');
     addKey(process.env.GROQ_API_KEY_FALLBACK2, '.env Fallback Key #2');
+    addKey(process.env.GROQ_API_KEY_FALLBACK3, '.env Fallback Key #3');
+    addKey(process.env.GROQ_API_KEY_FALLBACK4, '.env Fallback Key #4');
+    addKey(process.env.GROQ_API_KEY_FALLBACK5, '.env Fallback Key #5');
+    addKey(process.env.GROQ_API_KEY_FALLBACK6, '.env Fallback Key #6');
+    addKey(process.env.GROQ_API_KEY_FALLBACK7, '.env Fallback Key #7');
+    addKey(process.env.GROQ_API_KEY_FALLBACK8, '.env Fallback Key #8');
+    addKey(process.env.GROQ_API_KEY_FALLBACK9, '.env Fallback Key #9');
+    addKey(process.env.GROQ_API_KEY_FALLBACK10, '.env Fallback Key #10');
+
+    // Dynamic discovery for any other GROQ_API_KEY_FALLBACK* env keys
+    if (typeof process !== 'undefined' && process.env) {
+      const dynamicFallbackKeys = Object.keys(process.env)
+        .filter((k) => k.startsWith('GROQ_API_KEY_FALLBACK'))
+        .sort((a, b) => {
+          const numA = parseInt(a.replace(/[^0-9]/g, ''), 10) || 0;
+          const numB = parseInt(b.replace(/[^0-9]/g, ''), 10) || 0;
+          return numA - numB;
+        });
+
+      for (const envKeyName of dynamicFallbackKeys) {
+        const numMatch = envKeyName.match(/FALLBACK(\d+)/i);
+        const label = numMatch ? `.env Fallback Key #${numMatch[1]}` : `.env Fallback (${envKeyName})`;
+        addKey(process.env[envKeyName], label);
+      }
+    }
+
+    // User settings custom key override
     addKey(customKeyOverride || settings.customGroqApiKey, 'User Settings Key');
 
     return keys;
@@ -77,13 +114,44 @@ export class GroqServer {
       hasCustomKey,
       isConfigured: keys.length > 0,
       activeKeyType: keys.length > 0 ? (hasEnvKey ? 'primary_env' : 'backup_custom') : 'none',
+      totalConfiguredKeys: keys.length,
+      keyLabels: keys.map((k) => k.label),
     };
   }
 
   private static isRateLimitError(status: number, errorText: string = ''): boolean {
     if (status === 429) return true;
     const lower = errorText.toLowerCase();
-    return lower.includes('rate_limit') || lower.includes('429') || lower.includes('rate limit');
+    return (
+      lower.includes('rate_limit') ||
+      lower.includes('rate limit') ||
+      lower.includes('429') ||
+      lower.includes('quota') ||
+      lower.includes('tokens per minute') ||
+      lower.includes('requests per minute') ||
+      lower.includes('tokens per day') ||
+      lower.includes('requests per day') ||
+      lower.includes('tpm') ||
+      lower.includes('rpm') ||
+      lower.includes('tpd') ||
+      lower.includes('rpd') ||
+      lower.includes('too many requests')
+    );
+  }
+
+  private static isFailoverEligibleError(status: number, errorText: string = ''): boolean {
+    if (this.isRateLimitError(status, errorText)) return true;
+    if (status === 401 || status === 403) return true;
+    if (status >= 500 && status < 600) return true;
+    if (status === 529) return true;
+    const lower = errorText.toLowerCase();
+    return (
+      lower.includes('invalid api key') ||
+      lower.includes('invalid_api_key') ||
+      lower.includes('unauthorized') ||
+      lower.includes('overloaded') ||
+      lower.includes('service unavailable')
+    );
   }
 
   private static async executeWithFailover<T>(
@@ -106,21 +174,42 @@ export class GroqServer {
         return await operation(key);
       } catch (error: any) {
         lastError = error;
+        const status = error?.status || 0;
+        const msg = error?.message || '';
+        const errorText = error?.errorText || '';
+
         const isRateLimit =
-          error?.status === 429 ||
-          (error?.message && (error.message.includes('429') || error.message.toLowerCase().includes('rate limit')));
+          status === 429 ||
+          this.isRateLimitError(status, msg) ||
+          this.isRateLimitError(status, errorText);
 
         const isAuthError =
-          error?.status === 401 ||
-          (error?.message && (error.message.includes('401') || error.message.toLowerCase().includes('invalid api key')));
+          status === 401 ||
+          status === 403 ||
+          msg.includes('401') ||
+          msg.includes('403') ||
+          msg.toLowerCase().includes('invalid api key') ||
+          msg.toLowerCase().includes('unauthorized') ||
+          errorText.toLowerCase().includes('invalid api key');
 
-        if (isRateLimit || isAuthError) {
+        const isServerError = (status >= 500 && status < 600) || status === 529;
+
+        const canFailover = isRateLimit || isAuthError || isServerError;
+
+        if (canFailover) {
+          const reason = isRateLimit ? 'Rate limit hit' : isAuthError ? 'Auth failure' : 'Server capacity / outage';
           if (i < keys.length - 1) {
-            console.warn(`⚠️ [Groq Server] ${label} (${isRateLimit ? 'Rate limit hit' : 'Auth failure'}) during ${operationName}. Failing over to next key (${keys[i + 1].label})...`);
+            console.warn(
+              `⚠️ [Groq Server] ${label} (${reason}) during ${operationName}. Failing over to next key (${keys[i + 1].label})...`
+            );
             continue;
           } else {
-            console.error(`❌ [Groq Server] All ${keys.length} Groq API keys hit rate limit or failed during ${operationName}.`);
-            throw new Error(`Rate limit hit on all configured Groq keys! (Tried ${keys.length} keys). Add another key in Settings.`);
+            console.error(
+              `❌ [Groq Server] All ${keys.length} Groq API keys failed during ${operationName}. Last reason: ${reason}`
+            );
+            throw new Error(
+              `All configured Groq keys (${keys.length}) were exhausted (rate limit / failure). Add another key in Settings or check .env.`
+            );
           }
         }
 
@@ -164,9 +253,10 @@ export class GroqServer {
       if (!response.ok) {
         const errorText = await response.text();
         console.error('❌ [Groq STT Error]', response.status, errorText);
-        if (this.isRateLimitError(response.status, errorText)) {
-          const err = new Error(`Rate limit hit (Status ${response.status})`);
+        if (this.isFailoverEligibleError(response.status, errorText)) {
+          const err = new Error(`Whisper Transcription failed (Status ${response.status}): ${errorText}`);
           (err as any).status = response.status;
+          (err as any).errorText = errorText;
           throw err;
         }
         throw new Error(`Whisper Transcription failed (Status ${response.status}): ${errorText}`);
@@ -261,9 +351,10 @@ STRICT EXTRACTION RULES:
 
         if (!response.ok) {
           const errorText = await response.text();
-          if (this.isRateLimitError(response.status, errorText)) {
-            const err = new Error(`Rate limit hit (Status ${response.status})`);
+          if (this.isFailoverEligibleError(response.status, errorText)) {
+            const err = new Error(`Rate limit or API error hit (Status ${response.status}): ${errorText}`);
             (err as any).status = response.status;
+            (err as any).errorText = errorText;
             throw err;
           }
           return this.localHeuristicIntentParser(transcript);
@@ -386,9 +477,10 @@ RULES:
 
         if (!response.ok) {
           const errorText = await response.text();
-          if (this.isRateLimitError(response.status, errorText)) {
-            const err = new Error(`Rate limit hit (Status ${response.status})`);
+          if (this.isFailoverEligibleError(response.status, errorText)) {
+            const err = new Error(`Rate limit or API error hit (Status ${response.status}): ${errorText}`);
             (err as any).status = response.status;
+            (err as any).errorText = errorText;
             throw err;
           }
           return this.localHeuristicReceiptParser(transcript);
@@ -485,9 +577,10 @@ EXTRACTION GUIDELINES:
 
         if (!response.ok) {
           const errorText = await response.text();
-          if (this.isRateLimitError(response.status, errorText)) {
-            const err = new Error(`Rate limit hit (Status ${response.status})`);
+          if (this.isFailoverEligibleError(response.status, errorText)) {
+            const err = new Error(`Rate limit or API error hit (Status ${response.status}): ${errorText}`);
             (err as any).status = response.status;
+            (err as any).errorText = errorText;
             throw err;
           }
           return this.localHeuristicCustomDataParser(transcript, template);
@@ -590,9 +683,10 @@ Return ONLY a valid raw JSON object matching this structure:
 
         if (!response.ok) {
           const errorText = await response.text();
-          if (this.isRateLimitError(response.status, errorText)) {
-            const err = new Error(`Rate limit hit (Status ${response.status})`);
+          if (this.isFailoverEligibleError(response.status, errorText)) {
+            const err = new Error(`Rate limit or API error hit (Status ${response.status}): ${errorText}`);
             (err as any).status = response.status;
+            (err as any).errorText = errorText;
             throw err;
           }
           return this.localHeuristicFlexibleParser(transcript);
@@ -716,6 +810,13 @@ Allowed period values: "this_month", "last_month", "all_time".`;
         });
 
         if (!response.ok) {
+          const errorText = await response.text();
+          if (this.isFailoverEligibleError(response.status, errorText)) {
+            const err = new Error(`Rate limit or API error hit (Status ${response.status}): ${errorText}`);
+            (err as any).status = response.status;
+            (err as any).errorText = errorText;
+            throw err;
+          }
           return { queryType: 'general' };
         }
 

@@ -15,6 +15,8 @@ export interface KeyStatusInfo {
   hasCustomKey: boolean;
   isConfigured: boolean;
   activeKeyType: 'primary_env' | 'backup_custom' | 'none';
+  totalConfiguredKeys?: number;
+  keyLabels?: string[];
 }
 
 export class GroqService {
@@ -26,6 +28,8 @@ export class GroqService {
         hasCustomKey: status.hasCustomKey,
         isConfigured: status.isConfigured,
         activeKeyType: (status.activeKeyType as any) || 'none',
+        totalConfiguredKeys: status.totalConfiguredKeys,
+        keyLabels: status.keyLabels,
       };
     } catch {
       return {
@@ -33,6 +37,7 @@ export class GroqService {
         hasCustomKey: false,
         isConfigured: true,
         activeKeyType: 'primary_env',
+        totalConfiguredKeys: 1,
       };
     }
   }
