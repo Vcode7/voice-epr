@@ -3,9 +3,30 @@
 @tailwind utilities;
 
 :root {
+  /* Light Theme */
+  --background: #F8FAFC;
+  --card: #FFFFFF;
+  --card-border: #E2E8F0;
+  --surface: #F1F5F9;
+  --surface-muted: #E2E8F0;
+  --primary: #4F46E5;
+  --primary-dark: #4338CA;
+  --secondary: #059669;
+  --accent: #D97706;
+  --danger: #DC2626;
+  --text: #0F172A;
+  --text-muted: #475569;
+  --text-subtle: #64748B;
+  --data-color: #0891B2;
+}
+
+.dark {
+  /* Dark Theme (Preserving original design) */
   --background: #0F172A;
   --card: #1E293B;
   --card-border: #334155;
+  --surface: #131E33;
+  --surface-muted: #1E293B;
   --primary: #6366F1;
   --primary-dark: #4F46E5;
   --secondary: #10B981;
@@ -26,6 +47,7 @@ body {
   padding: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* Custom Scrollbars */
@@ -34,14 +56,14 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0F172A;
+  background: var(--background);
 }
 ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: var(--card-border);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: var(--text-subtle);
 }
 
 /* Animations */
@@ -74,11 +96,16 @@ body {
 }
 
 .skeleton-shimmer {
-  background: linear-gradient(90deg, rgba(30, 41, 59, 0.6) 25%, rgba(51, 65, 85, 0.8) 50%, rgba(30, 41, 59, 0.6) 75%);
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.2) 25%, rgba(148, 163, 184, 0.35) 50%, rgba(148, 163, 184, 0.2) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.6s infinite;
 }
 
+.dark .skeleton-shimmer {
+  background: linear-gradient(90deg, rgba(30, 41, 59, 0.6) 25%, rgba(51, 65, 85, 0.8) 50%, rgba(30, 41, 59, 0.6) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s infinite;
+}
 
 /* Print Stylesheet for Invoices & Data Entry PDFs */
 .print-only {

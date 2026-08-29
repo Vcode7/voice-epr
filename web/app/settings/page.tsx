@@ -15,10 +15,22 @@ import {
   CreditCard,
   LayoutTemplate,
   Eye,
+  Keyboard,
+  RotateCcw,
+  AlertTriangle,
 } from 'lucide-react';
-import { UserSettings, InvoiceFormatType, BankDetails } from '@/types';
+import { UserSettings, InvoiceFormatType, BankDetails, ShortcutAction, KeyboardShortcutsConfig } from '@/types';
 import { CURRENCIES, DEFAULT_SETTINGS } from '@/lib/constants';
 import { InvoiceFormatPreviewModal } from '@/components/invoice/InvoiceFormatPreviewModal';
+import { ThemeToggle } from '@/components/theme/ThemeToggle';
+import {
+  loadShortcutsConfig,
+  saveShortcutsToStorage,
+  resetShortcutsInStorage,
+  formatDisplayKeyCombo,
+  detectShortcutConflict,
+  formatKeyComboFromEvent,
+} from '@/lib/utils/shortcutManager';
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
@@ -58,6 +70,16 @@ export default function SettingsPage() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<any>(null);
 
+  // Keyboard Shortcuts State
+  const [shortcuts, setShortcuts] = useState<ShortcutAction[]>(() => loadShortcutsConfig());
+  const [editingShortcutId, setEditingShortcutId] = useState<string | null>(null);
+  const [shortcutConflict, setShortcutConflict] = useState<{
+    actionId: string;
+    conflictingName: string;
+    keyCombo: string;
+  } | null>(null);
+  const [shortcutToast, setShortcutToast] = useState<string | null>(null);
+
   const loadSettings = async () => {
     try {
       const [setRes, keyRes] = await Promise.all([
@@ -81,16 +103,100 @@ export default function SettingsPage() {
     loadSettings();
   }, []);
 
+  // Sync shortcuts when settings are loaded
+  useEffect(() => {
+    if (settings.keyboardShortcuts) {
+      setShortcuts(loadShortcutsConfig(settings.keyboardShortcuts));
+    }
+  }, [settings.keyboardShortcuts]);
+
+  // Key press capture listener when reassigning a shortcut
+  useEffect(() => {
+    if (!editingShortcutId) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // If user pressed Escape alone, cancel editing mode
+      if (e.key === 'Escape' && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+        setEditingShortcutId(null);
+        setShortcutConflict(null);
+        return;
+      }
+
+      // Ignore pure modifier key presses
+      if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) {
+        return;
+      }
+
+      const newKeyCombo = formatKeyComboFromEvent(e);
+      if (!newKeyCombo) return;
+
+      // Check conflict
+      const conflict = detectShortcutConflict(editingShortcutId, newKeyCombo, shortcuts);
+      if (conflict) {
+        setShortcutConflict({
+          actionId: editingShortcutId,
+          conflictingName: conflict.name,
+          keyCombo: newKeyCombo,
+        });
+        return;
+      }
+
+      // Apply new shortcut
+      const updated = shortcuts.map((s) =>
+        s.id === editingShortcutId ? { ...s, key: newKeyCombo } : s
+      );
+      setShortcuts(updated);
+      saveShortcutsToStorage(updated);
+      setEditingShortcutId(null);
+      setShortcutConflict(null);
+      setShortcutToast(`✓ Shortcut assigned to ${formatDisplayKeyCombo(newKeyCombo)}`);
+      setTimeout(() => setShortcutToast(null), 3000);
+
+      // Notify active pages
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('voice-epr-shortcuts-updated'));
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [editingShortcutId, shortcuts]);
+
+  const handleResetShortcuts = () => {
+    if (confirm('Are you sure you want to reset all keyboard shortcuts to default keys?')) {
+      const reset = resetShortcutsInStorage();
+      setShortcuts(reset);
+      setEditingShortcutId(null);
+      setShortcutConflict(null);
+      setShortcutToast('✓ All shortcuts restored to default bindings.');
+      setTimeout(() => setShortcutToast(null), 3000);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('voice-epr-shortcuts-updated'));
+      }
+    }
+  };
+
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setSaveSuccess(false);
     try {
+      const shortcutConfig: KeyboardShortcutsConfig = {};
+      shortcuts.forEach((s) => {
+        shortcutConfig[s.id] = s.key;
+      });
+
       const updated: UserSettings = {
         ...settings,
         bankDetails,
         invoiceFormat,
         customGroqApiKey: apiKeyInput.trim(),
+        keyboardShortcuts: shortcutConfig,
       };
       const res = await fetch('/api/settings', {
         method: 'PUT',
@@ -173,6 +279,22 @@ export default function SettingsPage() {
       </div>
 
       <form onSubmit={handleSaveSettings} className="space-y-6">
+        {/* Appearance & Theme Section */}
+        <div className="p-4 sm:p-6 rounded-2xl bg-card border border-cardBorder shadow-md space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <h2 className="text-xs sm:text-sm font-bold text-text uppercase tracking-wider flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-primary" />
+                Theme & Interface Appearance
+              </h2>
+              <p className="text-[11px] sm:text-xs text-textMuted">
+                Switch between Dark and Light mode. Your theme preference is preserved across sessions.
+              </p>
+            </div>
+            <ThemeToggle showLabel />
+          </div>
+        </div>
+
         {/* Business Details */}
         <div className="p-4 sm:p-6 rounded-2xl bg-card border border-cardBorder shadow-md space-y-4">
           <h2 className="text-xs sm:text-sm font-bold text-text uppercase tracking-wider flex items-center gap-2">
@@ -345,7 +467,7 @@ export default function SettingsPage() {
               className={`p-4 rounded-xl border cursor-pointer transition flex flex-col justify-between space-y-3 ${
                 invoiceFormat === 'standard'
                   ? 'bg-primary/15 border-primary shadow-md shadow-primary/15'
-                  : 'bg-slate-900/60 border-cardBorder hover:border-slate-600'
+                  : 'bg-surface border-cardBorder hover:border-primary/40'
               }`}
             >
               <div>
@@ -354,7 +476,7 @@ export default function SettingsPage() {
                   {invoiceFormat === 'standard' && <CheckCircle2 className="w-4 h-4 text-primary" />}
                 </div>
                 <p className="text-[11px] text-textSubtle mt-1 leading-relaxed">
-                  Vibrant dark card style with accent badges, structured summary boxes, and modern typography.
+                  Vibrant card style with accent badges, structured summary boxes, and modern typography.
                 </p>
               </div>
               <span className="text-[10px] font-bold text-primary uppercase">Modern UI Layout</span>
@@ -364,8 +486,8 @@ export default function SettingsPage() {
               onClick={() => setInvoiceFormat('basic_tax')}
               className={`p-4 rounded-xl border cursor-pointer transition flex flex-col justify-between space-y-3 ${
                 invoiceFormat === 'basic_tax'
-                  ? 'bg-neutral-100/10 border-neutral-300 shadow-md shadow-white/10'
-                  : 'bg-slate-900/60 border-cardBorder hover:border-slate-600'
+                  ? 'bg-dataColor/15 border-dataColor shadow-md shadow-dataColor/15'
+                  : 'bg-surface border-cardBorder hover:border-dataColor/40'
               }`}
             >
               <div>
@@ -401,7 +523,7 @@ export default function SettingsPage() {
                   className={`p-2.5 sm:p-3 rounded-xl border text-left transition cursor-pointer ${
                     isSelected
                       ? 'bg-secondary/15 border-secondary text-text font-bold shadow-sm'
-                      : 'bg-slate-900/60 border-cardBorder text-textMuted hover:border-slate-600'
+                      : 'bg-surface border-cardBorder text-textMuted hover:border-secondary/40'
                   }`}
                 >
                   <div className="text-xs sm:text-sm font-bold text-text flex items-center justify-between">
@@ -452,6 +574,125 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        {/* 6. KEYBOARD SHORTCUTS SECTION */}
+        <div id="shortcuts" className="p-4 sm:p-6 rounded-2xl bg-card border border-cardBorder shadow-md space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-cardBorder/60 pb-3">
+            <div className="flex items-center gap-2">
+              <Keyboard className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
+              <div>
+                <h2 className="text-xs sm:text-sm font-bold text-text uppercase tracking-wider">
+                  Keyboard Shortcuts &amp; Hotkeys
+                </h2>
+                <p className="text-[10px] sm:text-[11px] text-textSubtle">
+                  Customizable hotkeys for the Voice to Data page. Changes persist automatically across sessions.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleResetShortcuts}
+              className="px-3 py-1.5 rounded-xl bg-surface hover:bg-surfaceMuted border border-cardBorder text-text text-xs font-semibold flex items-center gap-1.5 self-start sm:self-auto transition cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-textSubtle" />
+              <span>Reset to Defaults</span>
+            </button>
+          </div>
+
+          {/* Shortcut Toast Message */}
+          {shortcutToast && (
+            <div className="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-semibold flex items-center gap-2 animate-fade-in">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              <span>{shortcutToast}</span>
+            </div>
+          )}
+
+          {/* Conflict Warning */}
+          {shortcutConflict && (
+            <div className="p-3 rounded-xl bg-danger/15 border border-danger/30 text-danger text-xs font-semibold flex items-start gap-2 animate-fade-in">
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p>
+                  <strong>Shortcut Conflict:</strong> The key combination{' '}
+                  <span className="font-mono px-1.5 py-0.5 rounded bg-danger/20 border border-danger/40">
+                    {formatDisplayKeyCombo(shortcutConflict.keyCombo)}
+                  </span>{' '}
+                  is already assigned to <strong>&quot;{shortcutConflict.conflictingName}&quot;</strong>.
+                </p>
+                <p className="text-[11px] text-textMuted">
+                  Please press a different key combination, or reassign that action first. Press <kbd className="font-mono">Esc</kbd> to cancel.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Shortcuts Grid / Table */}
+          <div className="divide-y divide-cardBorder/60 border border-cardBorder rounded-xl bg-surface/40 overflow-hidden">
+            {shortcuts.map((action) => {
+              const isListening = editingShortcutId === action.id;
+
+              return (
+                <div
+                  key={action.id}
+                  className={`p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition ${
+                    isListening ? 'bg-purple-500/15 border-l-4 border-l-purple-500' : 'hover:bg-surface/70'
+                  }`}
+                >
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-bold text-text flex items-center gap-2">
+                      <span>{action.name}</span>
+                      {action.key !== action.defaultKey && (
+                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-400 border border-purple-500/30">
+                          Custom
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-[11px] text-textSubtle">{action.description}</p>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                    {isListening ? (
+                      <div className="flex items-center gap-2">
+                        <span className="px-3 py-1.5 rounded-lg bg-purple-600 text-white font-mono font-bold text-xs animate-pulse shadow-md flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-white animate-ping" />
+                          Press key combo... (Esc to cancel)
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingShortcutId(null);
+                            setShortcutConflict(null);
+                          }}
+                          className="px-2.5 py-1.5 rounded-lg bg-surface text-textSubtle hover:text-text text-xs border border-cardBorder cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <kbd className="px-3 py-1.5 rounded-lg bg-background border border-cardBorder font-mono font-bold text-xs text-primary shadow-sm min-w-[70px] text-center">
+                          {formatDisplayKeyCombo(action.key) || 'Unassigned'}
+                        </kbd>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingShortcutId(action.id);
+                            setShortcutConflict(null);
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-surface hover:bg-surfaceMuted border border-cardBorder text-text text-xs font-semibold transition cursor-pointer hover:border-primary/50 shadow-sm"
+                        >
+                          Reassign
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Save Button */}
         <div className="flex items-center justify-between pt-1">
           {saveSuccess && (
@@ -479,7 +720,7 @@ export default function SettingsPage() {
 
         {/* Seed & Clear */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-          <div className="p-3.5 sm:p-4 rounded-xl bg-slate-900/60 border border-cardBorder space-y-2">
+          <div className="p-3.5 sm:p-4 rounded-xl bg-surface border border-cardBorder space-y-2">
             <h3 className="text-xs font-bold text-text flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-accent" />
               Load Sample Demo Data
@@ -489,13 +730,13 @@ export default function SettingsPage() {
             </p>
             <button
               onClick={handleSeedDemoData}
-              className="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-text transition cursor-pointer"
+              className="px-3.5 py-1.5 rounded-lg bg-card hover:bg-surfaceMuted border border-cardBorder text-xs font-semibold text-text transition cursor-pointer shadow-sm"
             >
               Seed Demo Records
             </button>
           </div>
 
-          <div className="p-3.5 sm:p-4 rounded-xl bg-slate-900/60 border border-cardBorder space-y-2">
+          <div className="p-3.5 sm:p-4 rounded-xl bg-surface border border-cardBorder space-y-2">
             <h3 className="text-xs font-bold text-danger flex items-center gap-1.5">
               <AlertCircle className="w-3.5 h-3.5" />
               Clear Local / DB Data
@@ -505,7 +746,7 @@ export default function SettingsPage() {
             </p>
             <button
               onClick={handleClearData}
-              className="px-3.5 py-1.5 rounded-lg bg-danger/15 hover:bg-danger/25 text-danger border border-danger/30 text-xs font-semibold transition cursor-pointer"
+              className="px-3.5 py-1.5 rounded-lg bg-danger/15 hover:bg-danger/25 text-danger border border-danger/30 text-xs font-semibold transition cursor-pointer shadow-sm"
             >
               Wipe Database
             </button>
@@ -524,7 +765,7 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={() => handleExport('json')}
-                  className="px-3 sm:px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-text flex items-center gap-1.5 transition cursor-pointer"
+                  className="px-3 sm:px-4 py-2 rounded-xl bg-surface border border-cardBorder hover:bg-surfaceMuted text-xs font-semibold text-text flex items-center gap-1.5 transition cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5 text-primary" />
                   JSON
@@ -532,7 +773,7 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={() => handleExport('csv')}
-                  className="px-3 sm:px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-text flex items-center gap-1.5 transition cursor-pointer"
+                  className="px-3 sm:px-4 py-2 rounded-xl bg-surface border border-cardBorder hover:bg-surfaceMuted text-xs font-semibold text-text flex items-center gap-1.5 transition cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5 text-secondary" />
                   CSV
@@ -558,7 +799,7 @@ export default function SettingsPage() {
           </div>
 
           {importResult && (
-            <div className="p-3 rounded-xl bg-slate-900 border border-cardBorder text-xs space-y-1">
+            <div className="p-3 rounded-xl bg-surface border border-cardBorder text-xs space-y-1">
               <div className="font-bold text-secondary flex items-center gap-1">
                 <CheckCircle2 className="w-4 h-4" /> Import Complete
               </div>

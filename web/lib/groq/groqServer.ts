@@ -9,6 +9,8 @@ import {
   FlexibleTable,
 } from '../../types';
 import { dbSettings } from '../db/models';
+import { normalizeAndAutoFillTemplateData } from '../utils/autoFillHelper';
+import { normalizeDateToDDMMYYYY, isDateField } from '../utils/dateUtils';
 
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_AUDIO_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
@@ -512,14 +514,45 @@ RULES:
       return this.localHeuristicCustomDataParser(transcript, template);
     }
 
+    const baseField = template.autoFill?.enabled
+      ? template.fields.find((f) => f.extractionKey === template.autoFill?.baseFieldKey)
+      : undefined;
+
     const fieldDescriptions = template.fields
-      .map((f) => `- "${f.extractionKey}" (${f.name}, type: ${f.type}${f.placeholder ? `, e.g. ${f.placeholder}` : ''})`)
+      .map((f) => {
+        let extra = '';
+        if (template.autoFill?.enabled && template.autoFill.targetFieldKeys.includes(f.extractionKey)) {
+          extra += ` [AUTOFILLED FIELD from "${baseField?.name || 'Base Field'}"]: Do NOT invent or fill this field; focus on extracting "${baseField?.name || 'Base Field'}" and other fields.`;
+        }
+        if (f.type === 'date' || isDateField(f.extractionKey) || isDateField(f.name)) {
+          extra += ` [DATE FIELD: Must format as DD-MM-YYYY, e.g. "28-08-2026"]`;
+        }
+        if (f.options && f.options.length > 0) {
+          extra += ` [ALLOWED VALUES ONLY: ${f.options.map((o) => `"${o}"`).join(', ')}] (CRITICAL: You MUST select ONLY one of these exact allowed values if mentioned or implied in the transcription)`;
+        }
+        if (f.placeholder) {
+          extra += `, e.g. ${f.placeholder}`;
+        }
+        return `- "${f.extractionKey}" (${f.name}, type: ${f.type}${extra})`;
+      })
       .join('\n');
 
     let tableSection = '';
     if (template.hasTable && template.tableFields && template.tableFields.length > 0) {
       const colDescriptions = template.tableFields
-        .map((c) => `  * "${c.extractionKey}" (${c.name}, type: ${c.type}${c.placeholder ? `, e.g. ${c.placeholder}` : ''})`)
+        .map((c) => {
+          let extra = '';
+          if (c.type === 'date' || isDateField(c.extractionKey) || isDateField(c.name)) {
+            extra += ` [DATE FIELD: Must format as DD-MM-YYYY, e.g. "28-08-2026"]`;
+          }
+          if (c.options && c.options.length > 0) {
+            extra += ` [ALLOWED VALUES ONLY: ${c.options.map((o) => `"${o}"`).join(', ')}] (CRITICAL: You MUST select ONLY one of these exact allowed values if mentioned in transcription)`;
+          }
+          if (c.placeholder) {
+            extra += `, e.g. ${c.placeholder}`;
+          }
+          return `  * "${c.extractionKey}" (${c.name}, type: ${c.type}${extra})`;
+        })
         .join('\n');
       tableSection = `
 REPEATED ENTRIES TABLE ("${template.tableTitle || 'Repeated Entries'}"):
@@ -550,10 +583,11 @@ Return ONLY a valid raw JSON object matching this structure:
 EXTRACTION GUIDELINES:
 1. Use the EXACT extraction keys provided above.
 2. Numeric fields: Extract as clean numbers or numeric strings.
-3. Date fields: Format as YYYY-MM-DD if mentioned, or null.
+3. Date fields: You MUST extract spoken dates and normalize them into DD-MM-YYYY format (e.g. "28 August 2026", "August 28 2026", "28/08/2026", "2026-08-28" all become "28-08-2026").
 4. Time fields: Format as standard time (e.g. "08:30 AM") if mentioned.
-5. Repeated Entries Table: Extract multi-row intervals or batches into "tableRows".
-6. Never invent facts not spoken by the user.`;
+5. FIXED / ALLOWED VALUE CONSTRAINTS: For any field or column with "[ALLOWED VALUES ONLY: ...]", you MUST select and return ONLY one of the specified allowed values from the transcript (e.g. if allowed values for shift are ["A", "B", "C"] and the speaker mentions "shift A", "first shift", "morning shift", "shift-A", or "A", you MUST output exactly "A"). Do NOT invent or return values outside the allowed options.
+6. Repeated Entries Table: Extract multi-row intervals or batches into "tableRows".
+7. Never invent facts not spoken by the user.`;
 
     try {
       return await this.executeWithFailover('Voice-to-Data Custom Extraction', customKey, async (apiKey) => {
@@ -601,20 +635,58 @@ EXTRACTION GUIDELINES:
           if (fieldValues[f.extractionKey] === undefined && parsed[f.extractionKey] !== undefined) {
             fieldValues[f.extractionKey] = parsed[f.extractionKey];
           }
+
+          // Normalize and enforce fixed options
+          if (f.options && f.options.length > 0) {
+            const rawVal = fieldValues[f.extractionKey];
+            if (rawVal !== undefined && rawVal !== null && String(rawVal).trim() !== '') {
+              const matched = GroqServer.matchAllowedOption(rawVal, f.options);
+              if (matched) {
+                fieldValues[f.extractionKey] = matched;
+              } else {
+                const fromTranscript = GroqServer.matchOptionFromTranscript(transcript, f.name, f.extractionKey, f.options);
+                fieldValues[f.extractionKey] = fromTranscript || '';
+              }
+            } else {
+              const fromTranscript = GroqServer.matchOptionFromTranscript(transcript, f.name, f.extractionKey, f.options);
+              if (fromTranscript) {
+                fieldValues[f.extractionKey] = fromTranscript;
+              }
+            }
+          }
         });
 
-        const tableRows = Array.isArray(parsed.tableRows)
+        const tableRows: Array<Record<string, any>> = Array.isArray(parsed.tableRows)
           ? parsed.tableRows
           : Array.isArray(parsed.rows)
           ? parsed.rows
           : [];
 
+        if (template.hasTable && template.tableFields && template.tableFields.length > 0) {
+          tableRows.forEach((row) => {
+            template.tableFields.forEach((c) => {
+              if (c.options && c.options.length > 0 && row[c.extractionKey] !== undefined) {
+                const matched = GroqServer.matchAllowedOption(row[c.extractionKey], c.options);
+                if (matched) {
+                  row[c.extractionKey] = matched;
+                }
+              }
+            });
+          });
+        }
+
+        // Normalize dates and apply Auto-Fill lookups & overrides
+        const normalizedData = normalizeAndAutoFillTemplateData(fieldValues, tableRows, template);
+
         return {
           templateId: template.id,
           templateName: template.name,
-          fieldValues,
-          tableRows,
+          fieldValues: normalizedData.fieldValues,
+          tableRows: normalizedData.tableRows,
           raw_transcript: transcript,
+          lookupStatus: normalizedData.lookupStatus,
+          invalidLookup: normalizedData.invalidLookup,
+          invalidLookupMessage: normalizedData.invalidLookupMessage,
         };
       });
     } catch (e: any) {
@@ -708,11 +780,18 @@ Return ONLY a valid raw JSON object matching this structure:
         }>(content);
 
         const rawFields = Array.isArray(parsed.fields) ? parsed.fields : [];
-        const normalizedFields: FlexibleField[] = rawFields.map((f, idx) => ({
-          id: `flex_field_${idx}_${Date.now()}`,
-          name: f.name || `Field ${idx + 1}`,
-          value: f.value !== null && f.value !== undefined ? f.value : '',
-        }));
+        const normalizedFields: FlexibleField[] = rawFields.map((f, idx) => {
+          const fieldName = f.name || `Field ${idx + 1}`;
+          let val = f.value !== null && f.value !== undefined ? f.value : '';
+          if (isDateField(fieldName) && val) {
+            val = normalizeDateToDDMMYYYY(val);
+          }
+          return {
+            id: `flex_field_${idx}_${Date.now()}`,
+            name: fieldName,
+            value: val,
+          };
+        });
 
         if (normalizedFields.length === 0 && typeof parsed === 'object') {
           Object.entries(parsed).forEach(([k, v], idx) => {
@@ -720,10 +799,14 @@ Return ONLY a valid raw JSON object matching this structure:
               const formattedName = k
                 .replace(/_/g, ' ')
                 .replace(/\b\w/g, (c) => c.toUpperCase());
+              let val = String(v);
+              if (isDateField(formattedName) && val) {
+                val = normalizeDateToDDMMYYYY(val);
+              }
               normalizedFields.push({
                 id: `flex_field_${idx}_${Date.now()}`,
                 name: formattedName,
-                value: String(v),
+                value: val,
               });
             }
           });
@@ -736,9 +819,21 @@ Return ONLY a valid raw JSON object matching this structure:
           if (headers.length > 0) {
             const rows = rawRows.map((r) => {
               if (Array.isArray(r)) {
-                return r.map((c) => (c !== null && c !== undefined ? String(c) : ''));
+                return r.map((c, colIdx) => {
+                  let cellVal = c !== null && c !== undefined ? String(c) : '';
+                  if (headers[colIdx] && isDateField(headers[colIdx]) && cellVal) {
+                    cellVal = normalizeDateToDDMMYYYY(cellVal);
+                  }
+                  return cellVal;
+                });
               } else if (typeof r === 'object' && r !== null) {
-                return headers.map((h) => (r[h] !== undefined ? String(r[h]) : ''));
+                return headers.map((h) => {
+                  let cellVal = r[h] !== undefined ? String(r[h]) : '';
+                  if (isDateField(h) && cellVal) {
+                    cellVal = normalizeDateToDDMMYYYY(cellVal);
+                  }
+                  return cellVal;
+                });
               }
               return headers.map(() => '');
             });
@@ -991,17 +1086,108 @@ Allowed period values: "this_month", "last_month", "all_time".`;
     };
   }
 
+  public static matchAllowedOption(rawValue: any, options: string[]): string | undefined {
+    if (rawValue === undefined || rawValue === null || options.length === 0) return undefined;
+    const str = String(rawValue).trim();
+    if (!str) return undefined;
+    const lower = str.toLowerCase();
+
+    // 1. Exact match (case insensitive)
+    const exact = options.find((opt) => opt.toLowerCase() === lower);
+    if (exact) return exact;
+
+    // 2. Look for whole word boundary match in raw value
+    for (const opt of options) {
+      const escaped = opt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`\\b${escaped}\\b`, 'i');
+      if (regex.test(str)) {
+        return opt;
+      }
+    }
+
+    // 3. Shift / common aliases
+    if (options.includes('A') && /\b(shift\s*a|1st\s*shift|first\s*shift|morning\s*shift|shift\s*1)\b/i.test(str)) return 'A';
+    if (options.includes('B') && /\b(shift\s*b|2nd\s*shift|second\s*shift|evening\s*shift|afternoon\s*shift|shift\s*2)\b/i.test(str)) return 'B';
+    if (options.includes('C') && /\b(shift\s*c|3rd\s*shift|third\s*shift|night\s*shift|shift\s*3)\b/i.test(str)) return 'C';
+
+    // 4. Substring containment
+    const sub = options.find((opt) => lower.includes(opt.toLowerCase()) || opt.toLowerCase().includes(lower));
+    if (sub) return sub;
+
+    return undefined;
+  }
+
+  public static matchOptionFromTranscript(
+    transcript: string,
+    fieldName: string,
+    extractionKey: string,
+    options: string[]
+  ): string | undefined {
+    if (!transcript || options.length === 0) return undefined;
+    const fLower = fieldName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const kLower = extractionKey.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    // Shift aliases
+    if ((fLower.includes('shift') || kLower.includes('shift'))) {
+      if (options.includes('A') && /\b(shift\s*a|1st\s*shift|first\s*shift|morning\s*shift|shift\s*1)\b/i.test(transcript)) return 'A';
+      if (options.includes('B') && /\b(shift\s*b|2nd\s*shift|second\s*shift|evening\s*shift|afternoon\s*shift|shift\s*2)\b/i.test(transcript)) return 'B';
+      if (options.includes('C') && /\b(shift\s*c|3rd\s*shift|third\s*shift|night\s*shift|shift\s*3)\b/i.test(transcript)) return 'C';
+    }
+
+    // Pattern: <fieldName|key> (is|:|no|code|was|-)? <option>
+    for (const opt of options) {
+      const escaped = opt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const optRegex = new RegExp(`(?:${fieldName}|${extractionKey})\\s*(?:is|:|no|code|was|-|number)?\\s*\\b${escaped}\\b`, 'i');
+      if (optRegex.test(transcript)) {
+        return opt;
+      }
+    }
+
+    // Pattern: <option> <fieldName|key> (e.g. "A shift" or "shift A")
+    for (const opt of options) {
+      const escaped = opt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const pattern = new RegExp(`\\b${escaped}\\s*(?:${fieldName}|${extractionKey})\\b|\\b(?:${fieldName}|${extractionKey})\\s*${escaped}\\b`, 'i');
+      if (pattern.test(transcript)) {
+        return opt;
+      }
+    }
+
+    // Standalone option with word boundary
+    for (const opt of options) {
+      if (opt.length > 1) {
+        const escaped = opt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const optRegex = new RegExp(`\\b${escaped}\\b`, 'i');
+        if (optRegex.test(transcript)) {
+          return opt;
+        }
+      }
+    }
+
+    return undefined;
+  }
+
   public static localHeuristicCustomDataParser(transcript: string, template: DataTemplate): ExtractedDataResult {
     const fieldValues: Record<string, any> = {};
 
     template.fields.forEach((f) => {
+      if (f.options && f.options.length > 0) {
+        const fromTranscript = GroqServer.matchOptionFromTranscript(transcript, f.name, f.extractionKey, f.options);
+        if (fromTranscript) {
+          fieldValues[f.extractionKey] = fromTranscript;
+          return;
+        }
+      }
+
       const fieldLower = f.name.toLowerCase();
       const keyLower = f.extractionKey.toLowerCase();
       const regex = new RegExp(`(?:${fieldLower}|${keyLower})\\s*(?:is|:|number|no|code|was)?\\s*([a-zA-Z0-9-/:_.]+)`, 'i');
       const match = transcript.match(regex);
       if (match && match[1]) {
         let val: any = match[1].trim();
-        if (f.type === 'number') {
+        if (f.options && f.options.length > 0) {
+          const matchedOpt = GroqServer.matchAllowedOption(val, f.options);
+          val = matchedOpt || val;
+        } else if (f.type === 'number') {
           const num = parseFloat(val);
           val = isNaN(num) ? val : num;
         }
@@ -1020,12 +1206,18 @@ Allowed period values: "this_month", "last_month", "all_time".`;
       tableRows.push(initialRow);
     }
 
+    // Normalize dates and apply Auto-Fill lookup
+    const normalizedData = normalizeAndAutoFillTemplateData(fieldValues, tableRows, template);
+
     return {
       templateId: template.id,
       templateName: template.name,
-      fieldValues,
-      tableRows,
+      fieldValues: normalizedData.fieldValues,
+      tableRows: normalizedData.tableRows,
       raw_transcript: transcript,
+      lookupStatus: normalizedData.lookupStatus,
+      invalidLookup: normalizedData.invalidLookup,
+      invalidLookupMessage: normalizedData.invalidLookupMessage,
     };
   }
 
@@ -1041,8 +1233,11 @@ Allowed period values: "this_month", "last_month", "all_time".`;
       const match = seg.match(/^([a-zA-Z\s#]+?)(?:\s*(?:is|:|number|no|=|->)\s*|\s+)(\S.*)$/i);
       if (match && match[1] && match[2]) {
         const rawName = match[1].trim();
-        const rawVal = match[2].trim();
+        let rawVal = match[2].trim();
         const cleanName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+        if (isDateField(cleanName)) {
+          rawVal = normalizeDateToDDMMYYYY(rawVal);
+        }
         fields.push({
           id: `flex_field_${idx}_${Date.now()}`,
           name: cleanName,
@@ -1071,6 +1266,169 @@ Allowed period values: "this_month", "last_month", "all_time".`;
       fields,
       table: null,
       raw_transcript: transcript,
+    };
+  }
+
+  public static async editEntryByVoice(
+    transcript: string,
+    template: DataTemplate | null | undefined,
+    currentValues: Record<string, any> = {},
+    options?: {
+      isFlexible?: boolean;
+      flexibleFields?: FlexibleField[];
+      customApiKey?: string | null;
+    }
+  ): Promise<{
+    updatedFields: Record<string, any>;
+    finalFieldValues: Record<string, any>;
+    detectedFieldNames: string[];
+    summary: string;
+    lookupStatus?: 'valid' | 'invalid' | 'none';
+    invalidLookup?: boolean;
+    invalidLookupMessage?: string;
+    rawTranscript?: string;
+  }> {
+    let fieldsPrompt = '';
+    if (template && template.fields) {
+      fieldsPrompt = template.fields
+        .map((f) => `- ${f.name} (Key: "${f.extractionKey}", Type: ${f.type})`)
+        .join('\n');
+    } else if (options?.flexibleFields && options.flexibleFields.length > 0) {
+      fieldsPrompt = options.flexibleFields
+        .map((f) => `- ${f.name} (Current: "${f.value}")`)
+        .join('\n');
+    } else {
+      fieldsPrompt = Object.entries(currentValues)
+        .map(([k, v]) => `- ${k} (Current: "${v}")`)
+        .join('\n');
+    }
+
+    const systemPrompt = `You are an intelligent entity modifier for an electronic production record (EPR) application.
+The user is speaking a voice correction to modify one or more fields in an existing record.
+Available Record Fields:
+${fieldsPrompt}
+
+Current Record Field Values:
+${JSON.stringify(currentValues, null, 2)}
+
+User Voice Correction Input:
+"${transcript}"
+
+TASK:
+1. Identify which field(s) the user wants to update and the exact new value(s).
+2. If the user mentions a field name or partial name (e.g. "Part No 341", "Change OK Quantity to 20", "Shift B", "28 August 2026"), match it with the closest extractionKey from the schema.
+3. If a date field is modified, normalize the value into "DD-MM-YYYY" format (e.g. "28-08-2026").
+4. Return ONLY valid JSON format:
+{
+  "updatedFields": { "<fieldKey>": <newValue> },
+  "detectedFieldNames": ["<human readable field name>"],
+  "summary": "<short description, e.g. Updated Part No to 341>"
+}`;
+
+    let result: any = null;
+
+    try {
+      result = await this.executeWithFailover<any>(
+        'Voice Field Edit Extraction',
+        options?.customApiKey,
+        async (apiKey) => {
+          const res = await fetch(GROQ_API_URL, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify({
+              model: LLM_MODEL,
+              messages: [{ role: 'user', content: systemPrompt }],
+              temperature: 0.05,
+              response_format: { type: 'json_object' },
+            }),
+          });
+
+          if (!res.ok) {
+            const errText = await res.text();
+            const err: any = new Error(`Groq Voice Edit Error: ${errText}`);
+            err.status = res.status;
+            throw err;
+          }
+
+          const data = await res.json();
+          const content = data.choices[0]?.message?.content || '{}';
+          return cleanAndParseJson<any>(content);
+        }
+      );
+    } catch (err) {
+      console.warn('LLM voice edit failed, trying heuristic extraction:', err);
+      // Heuristic fallback for simple voice edits
+      const updatedFallback: Record<string, any> = {};
+      const detectedNames: string[] = [];
+
+      if (template?.fields) {
+        for (const field of template.fields) {
+          const nameRegex = new RegExp(`(?:${field.name}|${field.extractionKey})\\s*(?:is|to|=|:)?\\s*(\\S.*)`, 'i');
+          const match = transcript.match(nameRegex);
+          if (match && match[1]) {
+            let val = match[1].trim();
+            if (field.type === 'number') {
+              const num = parseFloat(val.replace(/[^0-9.-]/g, ''));
+              if (!isNaN(num)) val = num as any;
+            } else if (field.type === 'date' || isDateField(field.extractionKey)) {
+              val = normalizeDateToDDMMYYYY(val);
+            }
+            updatedFallback[field.extractionKey] = val;
+            detectedNames.push(field.name);
+          }
+        }
+      }
+
+      result = {
+        updatedFields: updatedFallback,
+        detectedFieldNames: detectedNames,
+        summary: detectedNames.length > 0 ? `Updated ${detectedNames.join(', ')}` : 'Could not detect field to update',
+      };
+    }
+
+    const updatedFields: Record<string, any> = result?.updatedFields || {};
+    const detectedFieldNames: string[] = result?.detectedFieldNames || [];
+    const summary: string = result?.summary || 'Updated fields';
+
+    // Normalize dates in updated fields
+    Object.keys(updatedFields).forEach((k) => {
+      const fieldDef = template?.fields.find((f) => f.extractionKey === k || f.name.toLowerCase() === k.toLowerCase());
+      if (fieldDef?.type === 'date' || isDateField(k) || (fieldDef && isDateField(fieldDef.name))) {
+        updatedFields[k] = normalizeDateToDDMMYYYY(String(updatedFields[k]));
+      }
+    });
+
+    // Merge updated fields onto existing values
+    let finalFieldValues: Record<string, any> = {
+      ...currentValues,
+      ...updatedFields,
+    };
+
+    let lookupStatus: 'valid' | 'invalid' | 'none' = 'none';
+    let invalidLookup = false;
+    let invalidLookupMessage: string | undefined;
+
+    // If template has autofill and any updated field is the baseFieldKey, recalculate autofill!
+    if (template) {
+      const normalized = normalizeAndAutoFillTemplateData(finalFieldValues, [], template);
+      finalFieldValues = normalized.fieldValues;
+      lookupStatus = normalized.lookupStatus;
+      invalidLookup = normalized.invalidLookup;
+      invalidLookupMessage = normalized.invalidLookupMessage;
+    }
+
+    return {
+      updatedFields,
+      finalFieldValues,
+      detectedFieldNames,
+      summary,
+      lookupStatus,
+      invalidLookup,
+      invalidLookupMessage,
+      rawTranscript: transcript,
     };
   }
 }

@@ -464,25 +464,49 @@ export const dbTemplates = {
       return [NEW_DEFAULT_TEMPLATE, INDEPTH_TEMPLATE];
     }
 
-    // Auto-migrate: ensure NEW_DEFAULT_TEMPLATE and INDEPTH_TEMPLATE exist in database
-    const hasDefault = docs.some((d) => d.id === NEW_DEFAULT_TEMPLATE.id);
-    const hasIndepth = docs.some((d) => d.id === INDEPTH_TEMPLATE.id || d.name === 'Indepth Template');
+    // Auto-migrate: ensure NEW_DEFAULT_TEMPLATE and INDEPTH_TEMPLATE exist in database and have updated options
+    const defaultDoc = docs.find((d) => d.id === NEW_DEFAULT_TEMPLATE.id);
+    const indepthDoc = docs.find((d) => d.id === INDEPTH_TEMPLATE.id || d.name === 'Indepth Template');
 
-    if (!hasDefault || !hasIndepth) {
-      if (!hasDefault) {
+    let needsRefresh = false;
+
+    if (!defaultDoc) {
+      await db.collection('templates').updateOne(
+        { id: NEW_DEFAULT_TEMPLATE.id },
+        { $set: NEW_DEFAULT_TEMPLATE },
+        { upsert: true }
+      );
+      needsRefresh = true;
+    } else {
+      const shiftField = defaultDoc.fields?.find((f) => f.extractionKey === 'shift');
+      if (!shiftField?.options || shiftField.options.length === 0) {
         await db.collection('templates').updateOne(
           { id: NEW_DEFAULT_TEMPLATE.id },
-          { $set: NEW_DEFAULT_TEMPLATE },
-          { upsert: true }
+          { $set: NEW_DEFAULT_TEMPLATE }
         );
+        needsRefresh = true;
       }
-      if (!hasIndepth) {
+    }
+
+    if (!indepthDoc) {
+      await db.collection('templates').updateOne(
+        { id: INDEPTH_TEMPLATE.id },
+        { $set: INDEPTH_TEMPLATE },
+        { upsert: true }
+      );
+      needsRefresh = true;
+    } else {
+      const shiftField = indepthDoc.fields?.find((f) => f.extractionKey === 'shift');
+      if (!shiftField?.options || shiftField.options.length === 0) {
         await db.collection('templates').updateOne(
           { id: INDEPTH_TEMPLATE.id },
-          { $set: INDEPTH_TEMPLATE },
-          { upsert: true }
+          { $set: INDEPTH_TEMPLATE }
         );
+        needsRefresh = true;
       }
+    }
+
+    if (needsRefresh) {
       const updatedDocs = await db.collection<DataTemplate>('templates').find({}).toArray();
       return updatedDocs.map(({ _id, ...rest }: any) => rest as DataTemplate);
     }

@@ -252,7 +252,7 @@ export default function HistoryPage() {
                     <div
                       key={tx.id}
                       onClick={() => setEditingTx(tx)}
-                      className="p-3 sm:p-4 rounded-xl bg-card border border-cardBorder hover:border-slate-600 transition flex items-center justify-between cursor-pointer group shadow-sm"
+                      className="p-3 sm:p-4 rounded-xl bg-card border border-cardBorder hover:border-primary/40 transition flex items-center justify-between cursor-pointer group shadow-sm"
                     >
                       <div className="flex items-center space-x-3">
                         <div
@@ -274,7 +274,7 @@ export default function HistoryPage() {
                             <h4 className="text-xs sm:text-sm font-bold text-text truncate max-w-[140px] sm:max-w-none">
                               {tx.merchant || tx.category || 'Transaction'}
                             </h4>
-                            <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-slate-800 text-textMuted border border-cardBorder">
+                            <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-surface text-textMuted border border-cardBorder">
                               {tx.category || 'Other'}
                             </span>
                           </div>
@@ -282,7 +282,7 @@ export default function HistoryPage() {
                           <div className="flex items-center gap-1.5 text-[11px] text-textMuted mt-0.5 truncate">
                             {tx.paymentMethod && (
                               <span className="flex items-center gap-1">
-                                <CreditCard className="w-3 h-3 text-textSubtle" />
+                                <CreditCard className="w-3.5 h-3.5 text-textSubtle" />
                                 {tx.paymentMethod}
                               </span>
                             )}
@@ -317,13 +317,13 @@ export default function HistoryPage() {
                               e.stopPropagation();
                               setEditingTx(tx);
                             }}
-                            className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-textSubtle hover:text-text transition"
+                            className="p-1 rounded-lg bg-surface hover:bg-surfaceMuted border border-cardBorder text-textSubtle hover:text-text transition cursor-pointer"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={(e) => handleDeleteTx(tx.id, e)}
-                            className="p-1 rounded-lg bg-slate-800 hover:bg-danger/20 hover:text-danger text-textSubtle transition"
+                            className="p-1 rounded-lg bg-surface hover:bg-danger/20 hover:text-danger border border-cardBorder text-textSubtle transition cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -409,7 +409,7 @@ export default function HistoryPage() {
                     <div
                       key={entry.id}
                       onClick={() => setEditingEntry(entry)}
-                      className="p-3 sm:p-4 rounded-xl bg-card border border-cardBorder hover:border-slate-600 transition flex items-center justify-between cursor-pointer group shadow-sm"
+                      className="p-3 sm:p-4 rounded-xl bg-card border border-cardBorder hover:border-primary/40 transition flex items-center justify-between cursor-pointer group shadow-sm"
                     >
                       <div className="flex items-center space-x-3 min-w-0">
                         <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-cyan-500/15 text-cyan-400 flex items-center justify-center shrink-0">
@@ -421,10 +421,10 @@ export default function HistoryPage() {
                             <h4 className="text-xs sm:text-sm font-bold text-text truncate max-w-[140px] sm:max-w-none">
                               {entry.title || entry.templateName || 'EPR Record'}
                             </h4>
-                            <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-slate-800 text-cyan-400 border border-cyan-500/30">
+                            <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-surface text-dataColor border border-dataColor/30">
                               {entry.isFlexible ? 'Flexible' : entry.templateName}
                             </span>
-                            <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/30">
+                            <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-secondary/15 text-secondary border border-secondary/30">
                               {entry.totalEntries || entry.entries?.length || 1} {(entry.totalEntries || entry.entries?.length || 1) === 1 ? 'Entry' : 'Entries'}
                             </span>
                           </div>
@@ -458,14 +458,14 @@ export default function HistoryPage() {
                               e.stopPropagation();
                               setEditingEntry(entry);
                             }}
-                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-400 hover:text-text transition cursor-pointer"
+                            className="p-1.5 rounded-lg bg-surface hover:bg-surfaceMuted border border-cardBorder text-dataColor hover:text-text transition cursor-pointer"
                             title="View Parent Record & Child Entries"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={(e) => handleDeleteEntry(entry.id, e)}
-                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-danger/20 hover:text-danger text-textSubtle transition cursor-pointer"
+                            className="p-1.5 rounded-lg bg-surface hover:bg-danger/20 hover:text-danger border border-cardBorder text-textSubtle transition cursor-pointer"
                             title="Delete Record"
                           >
                             <Trash2 className="w-3.5 h-3.5" />

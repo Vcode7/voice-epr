@@ -89,7 +89,7 @@ export const INDEPTH_TEMPLATE: DataTemplate = {
     { id: 'f_raw_material', name: 'Raw Material', extractionKey: 'raw_material', type: 'text', placeholder: 'e.g. ABS Resin Grade A' },
     { id: 'f_planned_date', name: 'Planned Production Date', extractionKey: 'planned_production_date', type: 'date', placeholder: 'YYYY-MM-DD' },
     { id: 'f_batch_no', name: 'Batch No', extractionKey: 'batch_no', type: 'text', placeholder: 'e.g. B-2026-08' },
-    { id: 'f_shift', name: 'Shift', extractionKey: 'shift', type: 'text', placeholder: 'e.g. Shift A / Morning' },
+    { id: 'f_shift', name: 'Shift', extractionKey: 'shift', type: 'select', options: ['A', 'B', 'C'], placeholder: 'Select Shift (A, B, or C)' },
     { id: 'f_opening_counter', name: 'Opening Counter', extractionKey: 'opening_counter', type: 'number', placeholder: 'e.g. 12500' },
     { id: 'f_closing_counter', name: 'Closing Counter', extractionKey: 'closing_counter', type: 'number', placeholder: 'e.g. 13800' },
     { id: 'f_cycle_time', name: 'Cycle Time', extractionKey: 'cycle_time', type: 'text', placeholder: 'e.g. 45 sec' },
@@ -128,7 +128,7 @@ export const NEW_DEFAULT_TEMPLATE: DataTemplate = {
     { id: 'f_reg_n_qty', name: 'Reg n Qty', extractionKey: 'reg_n_qty', type: 'text', placeholder: 'e.g. 12 pcs' },
     { id: 'f_ok_qty', name: 'OK Qty', extractionKey: 'ok_qty', type: 'text', placeholder: 'e.g. 488 pcs' },
     { id: 'f_date', name: 'Date', extractionKey: 'date', type: 'text', placeholder: 'e.g. 21-08-2026' },
-    { id: 'f_shift', name: 'Shift', extractionKey: 'shift', type: 'text', placeholder: 'e.g. Shift A' },
+    { id: 'f_shift', name: 'Shift', extractionKey: 'shift', type: 'select', options: ['A', 'B', 'C'], placeholder: 'Select Shift (A, B, or C)' },
   ],
   hasTable: false,
   tableFields: [],
@@ -139,6 +139,89 @@ export const NEW_DEFAULT_TEMPLATE: DataTemplate = {
 // Aliases
 export const DEFAULT_MONITORING_DETAILS_TEMPLATE = NEW_DEFAULT_TEMPLATE;
 export const SYSTEM_DEFAULT_TEMPLATES = [NEW_DEFAULT_TEMPLATE, INDEPTH_TEMPLATE];
+
+export const DEFAULT_KEYBOARD_SHORTCUTS = [
+  {
+    id: 'toggle_recording',
+    name: 'Toggle Voice Recording',
+    description: 'Start or stop voice dictation on the Voice to Data page',
+    defaultKey: 'r',
+    key: 'r',
+    category: 'recording' as const,
+  },
+  {
+    id: 'new_template',
+    name: 'Create / Manage Templates',
+    description: 'Open the Template Manager to select or create a template',
+    defaultKey: 'ctrl+t',
+    key: 'ctrl+t',
+    category: 'template' as const,
+  },
+  {
+    id: 'add_field',
+    name: 'Add Field / Manual Entry',
+    description: 'Quickly create a new manual entry row or add flexible field',
+    defaultKey: 'ctrl+f',
+    key: 'ctrl+f',
+    category: 'entries' as const,
+  },
+  {
+    id: 'save_all',
+    name: 'Save All Entries',
+    description: 'Save all session entries into a single database parent record',
+    defaultKey: 'ctrl+enter',
+    key: 'ctrl+enter',
+    category: 'entries' as const,
+  },
+  {
+    id: 'edit_entry',
+    name: 'Edit Entry with Voice',
+    description: 'Trigger focused voice editing on the active or latest entry',
+    defaultKey: 'ctrl+e',
+    key: 'ctrl+e',
+    category: 'recording' as const,
+  },
+  {
+    id: 'cancel_action',
+    name: 'Cancel / Stop Action',
+    description: 'Stop recording, close open modals, or cancel current operation',
+    defaultKey: 'escape',
+    key: 'escape',
+    category: 'general' as const,
+  },
+  {
+    id: 'undo',
+    name: 'Undo Latest Action',
+    description: 'Revert the latest entry addition, edit, or deletion',
+    defaultKey: 'ctrl+z',
+    key: 'ctrl+z',
+    category: 'general' as const,
+  },
+  {
+    id: 'print_report',
+    name: 'Print Entries Report',
+    description: 'Open the formatted printable report view',
+    defaultKey: 'ctrl+p',
+    key: 'ctrl+p',
+    category: 'general' as const,
+  },
+  {
+    id: 'export_excel',
+    name: 'Export to Excel',
+    description: 'Export all current session entries to an Excel spreadsheet',
+    defaultKey: 'ctrl+shift+e',
+    key: 'ctrl+shift+e',
+    category: 'general' as const,
+  },
+  {
+    id: 'clear_all',
+    name: 'Clear Session Entries',
+    description: 'Clear all entries currently in the session stack',
+    defaultKey: 'ctrl+shift+x',
+    key: 'ctrl+shift+x',
+    category: 'entries' as const,
+  },
+];
 
 export const COLORS = {
   primary: '#6366F1',

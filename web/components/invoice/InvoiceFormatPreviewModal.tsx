@@ -59,7 +59,7 @@ export function InvoiceFormatPreviewModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md overflow-y-auto">
       <div className="bg-card border border-cardBorder rounded-2xl w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
         {/* Modal Header */}
-        <div className="p-4 sm:p-5 border-b border-cardBorder flex items-center justify-between bg-slate-900/60 shrink-0">
+        <div className="p-4 sm:p-5 border-b border-cardBorder flex items-center justify-between bg-surface/50 shrink-0">
           <div>
             <h2 className="text-base sm:text-lg font-bold text-text flex items-center gap-2">
               <LayoutTemplate className="w-5 h-5 text-primary" />
@@ -71,14 +71,14 @@ export function InvoiceFormatPreviewModal({
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-xl text-textMuted hover:text-text hover:bg-slate-800 transition"
+            className="p-1.5 rounded-xl text-textMuted hover:text-text hover:bg-surface transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Format Selector Pills */}
-        <div className="p-4 bg-slate-950/50 border-b border-cardBorder flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
+        <div className="p-4 bg-surface/30 border-b border-cardBorder flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
               onClick={() => setSelectedFormat('standard')}
@@ -115,7 +115,7 @@ export function InvoiceFormatPreviewModal({
         </div>
 
         {/* Live Preview Area */}
-        <div className="p-4 sm:p-6 overflow-y-auto flex-1 bg-slate-950/80">
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1 bg-surface/40">
           {selectedFormat === 'standard' ? (
             <StandardInvoiceView receipt={sampleReceipt} settings={settings} />
           ) : (
@@ -124,10 +124,10 @@ export function InvoiceFormatPreviewModal({
         </div>
 
         {/* Modal Footer */}
-        <div className="p-4 sm:p-5 border-t border-cardBorder bg-slate-900/60 flex items-center justify-between shrink-0">
+        <div className="p-4 sm:p-5 border-t border-cardBorder bg-surface/50 flex items-center justify-between shrink-0">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl border border-cardBorder text-textMuted hover:text-text hover:bg-slate-800 text-xs font-semibold transition"
+            className="px-4 py-2 rounded-xl border border-cardBorder text-textMuted hover:text-text hover:bg-surface text-xs font-semibold transition cursor-pointer"
           >
             Cancel
           </button>

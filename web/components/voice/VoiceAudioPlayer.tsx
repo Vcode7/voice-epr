@@ -76,11 +76,11 @@ export function VoiceAudioPlayer({ audioUrl, duration }: VoiceAudioPlayerProps) 
   };
 
   return (
-    <div className="w-full bg-slate-900/90 border border-cardBorder/80 rounded-xl p-3 shadow-inner flex flex-col gap-2">
+    <div className="w-full bg-surface border border-cardBorder rounded-xl p-3 shadow-inner flex flex-col gap-2">
       <audio ref={audioRef} src={audioUrl} preload="metadata" />
 
       <div className="flex items-center justify-between text-xs text-textMuted font-semibold">
-        <span className="flex items-center gap-1 text-cyan-400">
+        <span className="flex items-center gap-1 text-dataColor">
           <Volume2 className="w-3.5 h-3.5" />
           <span>Audio Recording</span>
         </span>
@@ -92,7 +92,7 @@ export function VoiceAudioPlayer({ audioUrl, duration }: VoiceAudioPlayerProps) 
       <div className="flex items-center gap-3">
         <button
           onClick={togglePlay}
-          className="w-8 h-8 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 flex items-center justify-center font-bold shadow-md transition cursor-pointer shrink-0"
+          className="w-8 h-8 rounded-lg bg-dataColor hover:bg-cyan-500 text-white flex items-center justify-center font-bold shadow-md transition cursor-pointer shrink-0"
           title={isPlaying ? 'Pause' : 'Play'}
         >
           {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
@@ -105,12 +105,12 @@ export function VoiceAudioPlayer({ audioUrl, duration }: VoiceAudioPlayerProps) 
           step="0.1"
           value={currentTime}
           onChange={handleSeek}
-          className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-400"
+          className="flex-1 h-1.5 bg-surfaceMuted rounded-lg appearance-none cursor-pointer accent-dataColor"
         />
 
         <button
           onClick={handleReset}
-          className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-textSubtle hover:text-text transition cursor-pointer shrink-0"
+          className="p-1.5 rounded-lg bg-card hover:bg-surfaceMuted border border-cardBorder text-textSubtle hover:text-text transition cursor-pointer shrink-0"
           title="Restart Audio"
         >
           <RotateCcw className="w-3.5 h-3.5" />

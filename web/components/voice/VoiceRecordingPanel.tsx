@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Mic,
   Square,
@@ -14,6 +14,7 @@ import {
   Check,
   FileText,
   Volume2,
+  Upload,
 } from 'lucide-react';
 import { DataTemplate, RecordingState } from '@/types';
 import { AudioVisualizer } from '@/components/voice/AudioVisualizer';
@@ -38,6 +39,7 @@ interface VoiceRecordingPanelProps {
   // Actions
   onMicPress: () => void;
   onOpenManualEntry: () => void;
+  onUploadAudio?: (file: File) => void;
 }
 
 export function VoiceRecordingPanel({
@@ -57,8 +59,11 @@ export function VoiceRecordingPanel({
   lastExtractedEntryNumber,
   onMicPress,
   onOpenManualEntry,
+  onUploadAudio,
 }: VoiceRecordingPanelProps) {
   const [copied, setCopied] = React.useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const formatTimer = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -71,6 +76,40 @@ export function VoiceRecordingPanel({
     navigator.clipboard.writeText(lastTranscript);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && onUploadAudio) {
+      onUploadAudio(file);
+    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file && onUploadAudio) {
+      if (file.type.startsWith('audio/') || file.name.match(/\.(mp3|wav|m4a|webm|ogg|aac|flac|mp4)$/i)) {
+        onUploadAudio(file);
+      } else {
+        alert('Please upload a valid audio file (.mp3, .wav, .m4a, .webm, etc.).');
+      }
+    }
   };
 
   return (
@@ -96,13 +135,13 @@ export function VoiceRecordingPanel({
         <label className="text-[11px] font-bold text-textSubtle uppercase tracking-wider block mb-2">
           Extraction Mode
         </label>
-        <div className="grid grid-cols-2 gap-2 bg-slate-900/80 p-1.5 rounded-xl border border-cardBorder">
+        <div className="grid grid-cols-2 gap-2 bg-surface p-1.5 rounded-xl border border-cardBorder shadow-inner">
           <button
             onClick={() => onModeChange('template')}
-            className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg text-xs font-bold transition cursor-pointer ${
+            className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               dataMode === 'template'
-                ? 'bg-cyan-500 text-slate-950 shadow-md font-extrabold'
-                : 'text-textMuted hover:text-text hover:bg-slate-800/60'
+                ? 'bg-dataColor text-white shadow-md shadow-dataColor/25 font-extrabold border border-dataColor/40'
+                : 'text-textMuted hover:text-text hover:bg-surfaceMuted'
             }`}
           >
             <Layers className="w-3.5 h-3.5" />
@@ -111,10 +150,10 @@ export function VoiceRecordingPanel({
 
           <button
             onClick={() => onModeChange('flexible')}
-            className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg text-xs font-bold transition cursor-pointer ${
+            className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               dataMode === 'flexible'
-                ? 'bg-cyan-500 text-slate-950 shadow-md font-extrabold'
-                : 'text-textMuted hover:text-text hover:bg-slate-800/60'
+                ? 'bg-dataColor text-white shadow-md shadow-dataColor/25 font-extrabold border border-dataColor/40'
+                : 'text-textMuted hover:text-text hover:bg-surfaceMuted'
             }`}
           >
             <Sparkles className="w-3.5 h-3.5" />
@@ -125,12 +164,12 @@ export function VoiceRecordingPanel({
 
       {/* Active Template Bar (when Template mode is active) */}
       {dataMode === 'template' && (
-        <div className="p-3 rounded-xl bg-slate-900/90 border border-cardBorder flex items-center justify-between gap-2">
+        <div className="p-3 rounded-xl bg-surface border border-cardBorder flex items-center justify-between gap-2">
           <div className="min-w-0">
             <span className="text-[10px] text-textSubtle uppercase font-bold block">Selected Template</span>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className="text-xs font-bold text-text truncate">{activeTemplate.name}</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-cyan-400 border border-cyan-500/30 shrink-0">
+              <span className="text-[10px] px-1.5 py-0.2 rounded bg-card text-dataColor border border-dataColor/30 shrink-0 font-medium">
                 {activeTemplate.fields.length} fields
               </span>
             </div>
@@ -138,7 +177,7 @@ export function VoiceRecordingPanel({
 
           <button
             onClick={onChangeTemplate}
-            className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-cardBorder text-xs font-semibold flex items-center gap-1 transition cursor-pointer shrink-0"
+            className="px-2.5 py-1.5 rounded-lg bg-card hover:bg-surfaceMuted text-dataColor border border-cardBorder text-xs font-semibold flex items-center gap-1 transition cursor-pointer shrink-0"
           >
             <Settings2 className="w-3.5 h-3.5" />
             <span>Change</span>
@@ -146,8 +185,17 @@ export function VoiceRecordingPanel({
         </div>
       )}
 
-      {/* Voice Recording Console */}
-      <div className="flex flex-col items-center justify-center text-center py-2 space-y-4 bg-slate-900/40 border border-cardBorder/40 rounded-xl p-4">
+      {/* Voice Recording / Drop Console */}
+      <div
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={`flex flex-col items-center justify-center text-center py-2 space-y-4 bg-surface/50 border rounded-xl p-4 transition-all ${
+          isDragging
+            ? 'border-dataColor bg-dataColor/10 scale-[1.01] ring-2 ring-dataColor/40'
+            : 'border-cardBorder/60'
+        }`}
+      >
         <AudioVisualizer isRecording={recordingState === 'Recording'} volumeLevel={volumeLevel} />
 
         {/* Glowing Record/Stop Button */}
@@ -158,7 +206,7 @@ export function VoiceRecordingPanel({
             className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center transition-all shadow-2xl cursor-pointer ${
               recordingState === 'Recording'
                 ? 'bg-danger text-white animate-pulse shadow-danger/50 scale-105'
-                : 'bg-gradient-to-tr from-cyan-600 to-dataColor hover:from-dataColor hover:to-cyan-400 text-slate-950 shadow-dataColor/30 hover:scale-105 active:scale-95'
+                : 'bg-gradient-to-tr from-cyan-600 to-dataColor hover:from-dataColor hover:to-cyan-400 text-white shadow-dataColor/30 hover:scale-105 active:scale-95'
             } disabled:opacity-50`}
             title={recordingState === 'Recording' ? 'Click to Stop & Extract' : 'Click to Record Voice'}
           >
@@ -188,8 +236,10 @@ export function VoiceRecordingPanel({
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 {processingStatus}
               </span>
+            ) : isDragging ? (
+              <span className="text-cyan-400 font-bold">Drop audio file here to extract</span>
             ) : (
-              <span>Click microphone to dictate a new entry</span>
+              <span>Click microphone to record, or drop an audio file</span>
             )}
           </p>
         </div>
@@ -233,10 +283,10 @@ export function VoiceRecordingPanel({
             </button>
           </div>
 
-          <div className="p-3 rounded-xl bg-slate-900/90 border border-cardBorder text-xs text-text leading-relaxed relative">
-            <p className="italic text-slate-200">"{lastTranscript}"</p>
+          <div className="p-3 rounded-xl bg-surface border border-cardBorder text-xs text-text leading-relaxed relative">
+            <p className="italic text-text font-medium">&quot;{lastTranscript}&quot;</p>
             {lastExtractedEntryNumber && (
-              <div className="mt-2 pt-2 border-t border-cardBorder/60 flex items-center justify-between text-[10px] text-cyan-400 font-semibold">
+              <div className="mt-2 pt-2 border-t border-cardBorder/60 flex items-center justify-between text-[10px] text-dataColor font-semibold">
                 <span>✓ Extracted into Entry #{lastExtractedEntryNumber}</span>
                 <span className="text-textSubtle">Appended to Left Panel</span>
               </div>
@@ -245,18 +295,45 @@ export function VoiceRecordingPanel({
         </div>
       )}
 
-      {/* Enter Manually Option */}
-      <div className="pt-2 border-t border-cardBorder/60 flex flex-col gap-2">
-        <button
-          onClick={onOpenManualEntry}
-          className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 border border-cardBorder text-text text-xs font-bold shadow-sm flex items-center justify-center gap-2 transition cursor-pointer hover:border-cyan-500/50"
-        >
-          <Edit3 className="w-4 h-4 text-cyan-400" />
-          <span>+ Add Entry Manually Without Voice</span>
-        </button>
+      {/* Secondary Input Options (Upload Audio / Manual Entry) */}
+      <div className="pt-2 border-t border-cardBorder/60 flex flex-col gap-2.5">
+        {/* Hidden File Input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="audio/*,.mp3,.wav,.m4a,.webm,.ogg,.aac,.flac,.mp4"
+          onChange={handleFileChange}
+          className="hidden"
+          id="voice-audio-file-input"
+        />
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {/* Upload Audio File */}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isProcessing || recordingState === 'Recording'}
+            className="w-full py-2.5 px-3 rounded-xl bg-surface hover:bg-surfaceMuted border border-cardBorder text-text text-xs font-bold shadow-sm flex items-center justify-center gap-2 transition cursor-pointer hover:border-dataColor/50 disabled:opacity-50 active:scale-[0.99]"
+            title="Upload audio recording file (.mp3, .wav, .m4a, .webm, etc.)"
+          >
+            <Upload className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Upload Audio</span>
+          </button>
+
+          {/* Add Entry Manually */}
+          <button
+            type="button"
+            onClick={onOpenManualEntry}
+            disabled={isProcessing || recordingState === 'Recording'}
+            className="w-full py-2.5 px-3 rounded-xl bg-surface hover:bg-surfaceMuted border border-cardBorder text-text text-xs font-bold shadow-sm flex items-center justify-center gap-2 transition cursor-pointer hover:border-dataColor/50 disabled:opacity-50 active:scale-[0.99]"
+          >
+            <Edit3 className="w-3.5 h-3.5 text-dataColor" />
+            <span>Manual Entry</span>
+          </button>
+        </div>
 
         <p className="text-[10px] text-textSubtle text-center">
-          💡 Each voice dictation or manual entry creates a separate entry in the left panel.
+          💡 Record voice, drop or upload audio (.mp3, .wav, .m4a), or add entries manually.
         </p>
       </div>
     </div>

@@ -106,7 +106,7 @@ export default function HomePage() {
                 <div
                   key={tx.id}
                   onClick={() => setSelectedTx(tx)}
-                  className="p-3.5 rounded-xl bg-slate-900/60 border border-cardBorder hover:border-slate-600 transition flex items-center justify-between cursor-pointer"
+                  className="p-3.5 rounded-xl bg-surface/60 hover:bg-surface border border-cardBorder hover:border-primary/40 transition flex items-center justify-between cursor-pointer"
                 >
                   <div className="flex items-center space-x-3">
                     <div
@@ -185,7 +185,7 @@ export default function HomePage() {
                 <div
                   key={entry.id}
                   onClick={() => setSelectedEntry(entry)}
-                  className="p-3.5 rounded-xl bg-slate-900/60 border border-cardBorder hover:border-slate-600 transition flex items-center justify-between cursor-pointer"
+                  className="p-3.5 rounded-xl bg-surface/60 hover:bg-surface border border-cardBorder hover:border-primary/40 transition flex items-center justify-between cursor-pointer"
                 >
                   <div className="flex items-center space-x-3">
                     <div className="w-9 h-9 rounded-xl bg-cyan-500/15 text-cyan-400 flex items-center justify-center">
@@ -204,7 +204,7 @@ export default function HomePage() {
                   </div>
 
                   <div className="text-right">
-                    <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-slate-800 text-cyan-400 border border-cyan-500/30">
+                    <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-surface text-dataColor border border-dataColor/30 font-medium">
                       {entry.tableRows?.length ? `${entry.tableRows.length} rows` : 'Fields only'}
                     </span>
                     <div className="text-[10px] text-textSubtle mt-1">

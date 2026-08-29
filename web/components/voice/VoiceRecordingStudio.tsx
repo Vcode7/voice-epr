@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Mic,
   Square,
@@ -11,6 +11,7 @@ import {
   Loader2,
   AlertCircle,
   Edit3,
+  Upload,
 } from 'lucide-react';
 import { useWebAudioRecorder } from '@/hooks/useWebAudioRecorder';
 import { AudioVisualizer } from './AudioVisualizer';
@@ -46,81 +47,96 @@ export function VoiceRecordingStudio({
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState<string>('');
 
+  const audioFileInputRef = useRef<HTMLInputElement>(null);
+
+  const processAudioInput = async (blob: Blob | File, filename: string = 'recording.webm') => {
+    try {
+      setIsProcessing(true);
+      recorder.setState('Transcribing');
+      setProcessingStatus('Transcribing speech with Whisper AI...');
+
+      const formData = new FormData();
+      formData.append('file', blob, filename);
+
+      const transcribeRes = await fetch('/api/groq/transcribe', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!transcribeRes.ok) {
+        const errData = await transcribeRes.json().catch(() => ({}));
+        throw new Error(errData.error || 'Audio transcription failed.');
+      }
+
+      const { text } = await transcribeRes.json();
+      recorder.setState('Understanding');
+      setProcessingStatus('Extracting structured entities with LLM...');
+
+      if (mode === 'expense') {
+        const res = await fetch('/api/groq/intent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transcript: text }),
+        });
+        const data: ExtractedIntentResult = await res.json();
+        setConfirmTxData(data);
+      } else if (mode === 'receipt') {
+        const res = await fetch('/api/groq/receipt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transcript: text }),
+        });
+        const data: ExtractedReceiptResult = await res.json();
+        setReceiptData(data);
+      } else {
+        // Voice-to-Data mode
+        if (voiceDataMode === 'flexible') {
+          const res = await fetch('/api/groq/flexible', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ transcript: text }),
+          });
+          const data: FlexibleExtractedResult = await res.json();
+          setFlexibleEprData(data);
+        } else {
+          const res = await fetch('/api/groq/custom-data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ transcript: text, template: activeTemplate }),
+          });
+          const data: ExtractedDataResult = await res.json();
+          setTemplateEprData(data);
+        }
+      }
+
+      recorder.resetRecorder();
+    } catch (err: any) {
+      console.error('Voice Processing Error:', err);
+      recorder.setErrorMessage(err.message || 'Processing failed. Please try again.');
+      recorder.setState('Error');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const handleMicPress = async () => {
     if (recorder.state === 'Recording') {
       const blob = await recorder.stopRecording();
       if (!blob) return;
-
-      try {
-        setIsProcessing(true);
-        recorder.setState('Transcribing');
-        setProcessingStatus('Transcribing speech with Whisper AI...');
-
-        const formData = new FormData();
-        formData.append('file', blob, 'recording.webm');
-
-        const transcribeRes = await fetch('/api/groq/transcribe', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (!transcribeRes.ok) {
-          const errData = await transcribeRes.json().catch(() => ({}));
-          throw new Error(errData.error || 'Audio transcription failed.');
-        }
-
-        const { text } = await transcribeRes.json();
-        recorder.setState('Understanding');
-        setProcessingStatus('Extracting structured entities with LLM...');
-
-        if (mode === 'expense') {
-          const res = await fetch('/api/groq/intent', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ transcript: text }),
-          });
-          const data: ExtractedIntentResult = await res.json();
-          setConfirmTxData(data);
-        } else if (mode === 'receipt') {
-          const res = await fetch('/api/groq/receipt', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ transcript: text }),
-          });
-          const data: ExtractedReceiptResult = await res.json();
-          setReceiptData(data);
-        } else {
-          // Voice-to-Data mode
-          if (voiceDataMode === 'flexible') {
-            const res = await fetch('/api/groq/flexible', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ transcript: text }),
-            });
-            const data: FlexibleExtractedResult = await res.json();
-            setFlexibleEprData(data);
-          } else {
-            const res = await fetch('/api/groq/custom-data', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ transcript: text, template: activeTemplate }),
-            });
-            const data: ExtractedDataResult = await res.json();
-            setTemplateEprData(data);
-          }
-        }
-
-        recorder.resetRecorder();
-      } catch (err: any) {
-        console.error('Voice Processing Error:', err);
-        recorder.setErrorMessage(err.message || 'Processing failed. Please try again.');
-        recorder.setState('Error');
-      } finally {
-        setIsProcessing(false);
-      }
+      await processAudioInput(blob, 'recording.webm');
     } else {
       await recorder.startRecording();
     }
+  };
+
+  const handleAudioFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (recorder.state === 'Recording') {
+      await recorder.stopRecording();
+    }
+    await processAudioInput(file, file.name);
+    if (audioFileInputRef.current) audioFileInputRef.current.value = '';
   };
 
   const formatTimer = (seconds: number) => {
@@ -142,7 +158,7 @@ export function VoiceRecordingStudio({
             className={`flex items-center space-x-1.5 px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs font-bold shrink-0 transition cursor-pointer ${
               mode === 'expense'
                 ? 'bg-primary text-white shadow-lg shadow-primary/30 border border-primary/40'
-                : 'bg-slate-900/60 text-textMuted hover:text-text border border-cardBorder'
+                : 'bg-surface text-textMuted hover:text-text border border-cardBorder'
             }`}
           >
             <DollarSign className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -154,7 +170,7 @@ export function VoiceRecordingStudio({
             className={`flex items-center space-x-1.5 px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs font-bold shrink-0 transition cursor-pointer ${
               mode === 'receipt'
                 ? 'bg-secondary text-white shadow-lg shadow-secondary/30 border border-secondary/40'
-                : 'bg-slate-900/60 text-textMuted hover:text-text border border-cardBorder'
+                : 'bg-surface text-textMuted hover:text-text border border-cardBorder'
             }`}
           >
             <Receipt className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -166,7 +182,7 @@ export function VoiceRecordingStudio({
             className={`flex items-center space-x-1.5 px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs font-bold shrink-0 transition cursor-pointer ${
               mode === 'data'
                 ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/30 border border-cyan-500/40'
-                : 'bg-slate-900/60 text-textMuted hover:text-text border border-cardBorder'
+                : 'bg-surface text-textMuted hover:text-text border border-cardBorder'
             }`}
           >
             <FileSpreadsheet className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -176,7 +192,7 @@ export function VoiceRecordingStudio({
 
         {/* Sub-mode selector if in Data Entry mode */}
         {mode === 'data' && (
-          <div className="flex flex-col xs:flex-row items-stretch xs:items-center justify-between p-2.5 sm:p-3 rounded-xl bg-slate-900/80 border border-cardBorder mb-4 sm:mb-6 max-w-xl mx-auto gap-2">
+          <div className="flex flex-col xs:flex-row items-stretch xs:items-center justify-between p-2.5 sm:p-3 rounded-xl bg-surface border border-cardBorder mb-4 sm:mb-6 max-w-xl mx-auto gap-2">
             <div className="flex items-center space-x-1.5 overflow-x-auto pb-0.5">
               <button
                 onClick={() => setVoiceDataMode('flexible')}
@@ -204,7 +220,7 @@ export function VoiceRecordingStudio({
             {voiceDataMode === 'template' && (
               <button
                 onClick={() => setShowTemplateManager(true)}
-                className="text-xs text-textMuted hover:text-cyan-400 flex items-center justify-center gap-1 font-semibold transition cursor-pointer py-1 px-2 rounded-lg bg-slate-800/60"
+                className="text-xs text-dataColor hover:text-dataColor/80 flex items-center justify-center gap-1 font-semibold transition cursor-pointer py-1 px-2.5 rounded-lg bg-card hover:bg-surface border border-cardBorder shadow-sm"
               >
                 <Settings2 className="w-3.5 h-3.5" />
                 <span>Switch</span>
@@ -229,7 +245,7 @@ export function VoiceRecordingStudio({
                   ? 'bg-gradient-to-tr from-primaryDark to-primary hover:from-primary hover:to-indigo-400 text-white shadow-primary/30 hover:scale-105 active:scale-95'
                   : mode === 'receipt'
                   ? 'bg-gradient-to-tr from-emerald-600 to-secondary hover:from-secondary hover:to-emerald-400 text-white shadow-secondary/30 hover:scale-105 active:scale-95'
-                  : 'bg-gradient-to-tr from-cyan-600 to-dataColor hover:from-dataColor hover:to-cyan-400 text-slate-950 shadow-dataColor/30 hover:scale-105 active:scale-95'
+                  : 'bg-gradient-to-tr from-cyan-600 to-dataColor hover:from-dataColor hover:to-cyan-400 text-white shadow-dataColor/30 hover:scale-105 active:scale-95'
               } disabled:opacity-50`}
             >
               {recorder.state === 'Recording' ? (
@@ -264,19 +280,39 @@ export function VoiceRecordingStudio({
             </p>
           </div>
 
-          {/* Manual Entry Button if in Data Mode */}
-          {mode === 'data' && (
-            <div className="pt-1">
+          {/* Audio Upload & Manual Entry Buttons */}
+          <div className="pt-2 flex flex-wrap items-center justify-center gap-2">
+            <input
+              ref={audioFileInputRef}
+              type="file"
+              accept="audio/*,.mp3,.wav,.m4a,.webm,.ogg,.aac,.flac,.mp4"
+              onChange={handleAudioFileUpload}
+              className="hidden"
+              id="voice-recording-studio-audio-upload"
+            />
+            <button
+              type="button"
+              onClick={() => audioFileInputRef.current?.click()}
+              disabled={isProcessing || recorder.state === 'Recording'}
+              className="px-3.5 py-2 rounded-xl bg-surface hover:bg-surfaceMuted border border-cardBorder text-text text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer hover:border-primary/50 shadow-sm active:scale-98 disabled:opacity-50"
+              title="Upload audio file for transcription & data extraction"
+            >
+              <Upload className="w-3.5 h-3.5 text-primary" />
+              <span>Upload Audio</span>
+            </button>
+
+            {mode === 'data' && (
               <button
                 type="button"
                 onClick={() => setIsManualDataEntry(true)}
-                className="px-4 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-cardBorder text-text text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer hover:border-cyan-500/50 shadow-sm"
+                disabled={isProcessing || recorder.state === 'Recording'}
+                className="px-3.5 py-2 rounded-xl bg-surface hover:bg-surfaceMuted border border-cardBorder text-text text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer hover:border-dataColor/50 shadow-sm active:scale-98 disabled:opacity-50"
               >
-                <Edit3 className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Enter Manually Without Voice</span>
+                <Edit3 className="w-3.5 h-3.5 text-dataColor" />
+                <span>Enter Manually</span>
               </button>
-            </div>
-          )}
+            )}
+          </div>
 
           {recorder.errorMessage && (
             <div className="p-2.5 sm:p-3 rounded-xl bg-danger/15 border border-danger/30 text-danger text-xs flex items-center gap-2 max-w-md">

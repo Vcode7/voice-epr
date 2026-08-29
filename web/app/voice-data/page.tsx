@@ -8,14 +8,18 @@ import {
   Search,
   Trash2,
   Edit2,
-  Printer,
   Save,
   CheckCircle2,
   Database,
   ChevronDown,
   ChevronUp,
+  Keyboard,
+  Undo2,
+  X,
 } from 'lucide-react';
 import { useWebAudioRecorder } from '@/hooks/useWebAudioRecorder';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { formatDisplayKeyCombo } from '@/lib/utils/shortcutManager';
 import {
   DataTemplate,
   DataEntryRecord,
@@ -25,7 +29,9 @@ import {
   UserSettings,
 } from '@/types';
 import { DEFAULT_MONITORING_DETAILS_TEMPLATE, DEFAULT_SETTINGS } from '@/lib/constants';
-import { formatDateDisplay } from '@/lib/utils/dateUtils';
+import { VoiceAudioPlayer } from '@/components/voice/VoiceAudioPlayer';
+import { formatDateDisplay, getTodayString, normalizeDateToDDMMYYYY, isDateField } from '@/lib/utils/dateUtils';
+import { applyAutoFill } from '@/lib/utils/autoFillHelper';
 import { exportEntriesToExcel } from '@/lib/utils/excelExporter';
 import { VoiceRecordingPanel } from '@/components/voice/VoiceRecordingPanel';
 import { ExtractedEntriesList } from '@/components/voice/ExtractedEntriesList';
@@ -41,8 +47,9 @@ export default function VoiceDataPage() {
   const [showTemplateManager, setShowTemplateManager] = useState(false);
   const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
 
-  // 2. Accumulated Session Entries (Left Panel)
+  // 2. Accumulated Session Entries (Left Panel) & Undo Stack
   const [entries, setEntries] = useState<SessionDataEntry[]>([]);
+  const [undoStack, setUndoStack] = useState<SessionDataEntry[][]>([]);
   const [isSavingAll, setIsSavingAll] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
 
@@ -53,6 +60,16 @@ export default function VoiceDataPage() {
   const [lastAudioUrl, setLastAudioUrl] = useState<string | null>(null);
   const [lastTranscript, setLastTranscript] = useState<string | null>(null);
   const [lastExtractedEntryNumber, setLastExtractedEntryNumber] = useState<number | null>(null);
+
+  // 3b. Voice Editing on Specific Existing Entry
+  const [activeVoiceEditingId, setActiveVoiceEditingId] = useState<string | null>(null);
+  const [isVoiceEditingProcessing, setIsVoiceEditingProcessing] = useState(false);
+  const [voiceEditingStatus, setVoiceEditingStatus] = useState<string>('');
+  const [lastEditedNotification, setLastEditedNotification] = useState<{
+    entryId: string;
+    message: string;
+  } | null>(null);
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
 
   // 4. Saved Database Records (History section below)
   const [records, setRecords] = useState<DataEntryRecord[]>([]);
@@ -105,105 +122,233 @@ export default function VoiceDataPage() {
     }
   }, [recorder.audioUrl]);
 
+  // Helper to update entries and preserve undo history
+  const updateEntriesWithHistory = (
+    updater: (prev: SessionDataEntry[]) => SessionDataEntry[]
+  ) => {
+    setEntries((prev) => {
+      setUndoStack((stack) => [...stack.slice(-19), prev]);
+      return updater(prev);
+    });
+  };
+
+  const handleUndo = () => {
+    if (undoStack.length === 0) return;
+    const previous = undoStack[undoStack.length - 1];
+    setUndoStack((stack) => stack.slice(0, -1));
+    setEntries(previous);
+    setSaveSuccessMsg('↺ Undid latest change to entries.');
+    setTimeout(() => setSaveSuccessMsg(null), 3000);
+  };
+
+  // Voice Edit Handler for editing a specific entry via voice
+  const handleVoiceEditEntry = async (entryId: string) => {
+    if (activeVoiceEditingId === entryId) {
+      if (recorder.state === 'Recording') {
+        const blob = await recorder.stopRecording();
+        if (!blob) {
+          setActiveVoiceEditingId(null);
+          return;
+        }
+
+        try {
+          setIsVoiceEditingProcessing(true);
+          setVoiceEditingStatus('Transcribing voice correction...');
+
+          const formData = new FormData();
+          formData.append('file', blob, 'recording.webm');
+
+          const transcribeRes = await fetch('/api/groq/transcribe', {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (!transcribeRes.ok) {
+            throw new Error('Failed to transcribe voice correction.');
+          }
+
+          const { text } = await transcribeRes.json();
+          setVoiceEditingStatus(`Extracting field update for "${text}"...`);
+
+          const targetEntry = entries.find((e) => e.id === entryId);
+          if (!targetEntry) throw new Error('Target entry not found.');
+
+          const tmpl = templates.find((t) => t.id === targetEntry.templateId) || activeTemplate;
+
+          const editRes = await fetch('/api/groq/voice-edit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              transcript: text,
+              template: targetEntry.mode === 'template' ? tmpl : null,
+              currentValues: targetEntry.fieldValues || {},
+              isFlexible: targetEntry.mode === 'flexible',
+              flexibleFields: targetEntry.flexibleFields,
+            }),
+          });
+
+          if (!editRes.ok) {
+            throw new Error('Failed to process voice field update.');
+          }
+
+          const editData = await editRes.json();
+
+          // Update entry in state with history
+          updateEntriesWithHistory((prev) =>
+            prev.map((e) => {
+              if (e.id !== entryId) return e;
+              return {
+                ...e,
+                fieldValues: editData.finalFieldValues || editData.updatedFields || e.fieldValues,
+                lookupStatus: editData.lookupStatus ?? e.lookupStatus,
+                invalidLookup: editData.invalidLookup ?? e.invalidLookup,
+                invalidLookupMessage: editData.invalidLookupMessage ?? e.invalidLookupMessage,
+              };
+            })
+          );
+
+          setLastEditedNotification({
+            entryId,
+            message: editData.summary || `✓ Updated fields from voice: "${text}"`,
+          });
+
+          setTimeout(() => setLastEditedNotification(null), 5000);
+        } catch (err: any) {
+          alert(`Voice edit error: ${err.message || 'Unknown error'}`);
+        } finally {
+          setIsVoiceEditingProcessing(false);
+          setActiveVoiceEditingId(null);
+          setVoiceEditingStatus('');
+          recorder.setState('Ready');
+        }
+      } else {
+        setActiveVoiceEditingId(null);
+      }
+    } else {
+      // If currently regular recording, stop it
+      if (recorder.state === 'Recording') {
+        await recorder.stopRecording();
+      }
+      setActiveVoiceEditingId(entryId);
+      await recorder.startRecording();
+    }
+  };
+
+  // Unified Audio Processing Function (supports mic recordings and uploaded audio files)
+  const processAudioInput = async (blob: Blob | File, filename: string = 'recording.webm') => {
+    try {
+      setIsProcessing(true);
+      recorder.setState('Transcribing');
+      setProcessingStatus('Transcribing audio with Whisper AI...');
+
+      const formData = new FormData();
+      formData.append('file', blob, filename);
+
+      const transcribeRes = await fetch('/api/groq/transcribe', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!transcribeRes.ok) {
+        const errData = await transcribeRes.json().catch(() => ({}));
+        throw new Error(errData.error || 'Audio transcription failed.');
+      }
+
+      const { text } = await transcribeRes.json();
+      setLastTranscript(text);
+      recorder.setState('Understanding');
+      setProcessingStatus('Extracting structured entities into new Entry...');
+
+      const currentEntryNum = entries.length + 1;
+      const entryId = `entry_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+      const recordedAudioUrl = blob instanceof Blob ? URL.createObjectURL(blob) : recorder.audioUrl;
+      setLastAudioUrl(recordedAudioUrl);
+
+      if (dataMode === 'flexible') {
+        const res = await fetch('/api/groq/flexible', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transcript: text }),
+        });
+        const data: FlexibleExtractedResult = await res.json();
+
+        const newEntry: SessionDataEntry = {
+          id: entryId,
+          entryNumber: currentEntryNum,
+          mode: 'flexible',
+          templateId: 'flexible',
+          templateName: data.title || 'Flexible Voice Record',
+          title: data.title || 'Flexible Voice Record',
+          fieldValues: (data.fields || []).reduce((acc, f) => ({ ...acc, [f.name]: f.value }), {}),
+          flexibleFields: data.fields || [],
+          tableTitle: data.table?.title || 'Detected Data Table',
+          tableHeaders: data.table?.headers || ['Time Interval', 'Produced Qty', 'Status'],
+          tableRows: data.table?.rows || [],
+          rawTranscript: text,
+          audioUrl: recordedAudioUrl,
+          createdAt: new Date().toISOString(),
+        };
+
+        updateEntriesWithHistory((prev) => [...prev, newEntry]);
+      } else {
+        const res = await fetch('/api/groq/custom-data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transcript: text, template: activeTemplate }),
+        });
+        const data: ExtractedDataResult = await res.json();
+
+        const newEntry: SessionDataEntry = {
+          id: entryId,
+          entryNumber: currentEntryNum,
+          mode: 'template',
+          templateId: activeTemplate.id,
+          templateName: activeTemplate.name,
+          title: activeTemplate.name,
+          fieldValues: data.fieldValues || {},
+          tableTitle: activeTemplate.tableTitle || 'Repeated Entries',
+          tableHeaders: activeTemplate.tableFields?.map((f) => f.name) || [],
+          tableRows: data.tableRows || [],
+          rawTranscript: text,
+          audioUrl: recordedAudioUrl,
+          createdAt: new Date().toISOString(),
+          lookupStatus: data.lookupStatus,
+          invalidLookup: data.invalidLookup,
+          invalidLookupMessage: data.invalidLookupMessage,
+        };
+
+        updateEntriesWithHistory((prev) => [...prev, newEntry]);
+      }
+
+      setLastExtractedEntryNumber(currentEntryNum);
+      recorder.setState('Ready');
+    } catch (err: any) {
+      console.error('Audio Processing Error:', err);
+      recorder.setErrorMessage(err.message || 'Processing failed. Please try again.');
+      recorder.setState('Error');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   // Handle microphone toggle
   const handleMicPress = async () => {
     if (recorder.state === 'Recording') {
       const blob = await recorder.stopRecording();
       if (!blob) return;
-
-      try {
-        setIsProcessing(true);
-        recorder.setState('Transcribing');
-        setProcessingStatus('Transcribing speech with Whisper AI...');
-
-        const formData = new FormData();
-        formData.append('file', blob, 'recording.webm');
-
-        const transcribeRes = await fetch('/api/groq/transcribe', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (!transcribeRes.ok) {
-          const errData = await transcribeRes.json().catch(() => ({}));
-          throw new Error(errData.error || 'Audio transcription failed.');
-        }
-
-        const { text } = await transcribeRes.json();
-        setLastTranscript(text);
-        recorder.setState('Understanding');
-        setProcessingStatus('Extracting structured entities into new Entry...');
-
-        const currentEntryNum = entries.length + 1;
-        const entryId = `entry_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
-        const recordedAudioUrl = recorder.audioUrl || (blob ? URL.createObjectURL(blob) : null);
-        setLastAudioUrl(recordedAudioUrl);
-
-        if (dataMode === 'flexible') {
-          const res = await fetch('/api/groq/flexible', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ transcript: text }),
-          });
-          const data: FlexibleExtractedResult = await res.json();
-
-          const newEntry: SessionDataEntry = {
-            id: entryId,
-            entryNumber: currentEntryNum,
-            mode: 'flexible',
-            templateId: 'flexible',
-            templateName: data.title || 'Flexible Voice Record',
-            title: data.title || 'Flexible Voice Record',
-            fieldValues: (data.fields || []).reduce((acc, f) => ({ ...acc, [f.name]: f.value }), {}),
-            flexibleFields: data.fields || [],
-            tableTitle: data.table?.title || 'Detected Data Table',
-            tableHeaders: data.table?.headers || ['Time Interval', 'Produced Qty', 'Status'],
-            tableRows: data.table?.rows || [],
-            rawTranscript: text,
-            audioUrl: recordedAudioUrl,
-            createdAt: new Date().toISOString(),
-          };
-
-          setEntries((prev) => [...prev, newEntry]);
-        } else {
-          const res = await fetch('/api/groq/custom-data', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ transcript: text, template: activeTemplate }),
-          });
-          const data: ExtractedDataResult = await res.json();
-
-          const newEntry: SessionDataEntry = {
-            id: entryId,
-            entryNumber: currentEntryNum,
-            mode: 'template',
-            templateId: activeTemplate.id,
-            templateName: activeTemplate.name,
-            title: activeTemplate.name,
-            fieldValues: data.fieldValues || {},
-            tableTitle: activeTemplate.tableTitle || 'Repeated Entries',
-            tableHeaders: activeTemplate.tableFields?.map((f) => f.name) || [],
-            tableRows: data.tableRows || [],
-            rawTranscript: text,
-            audioUrl: recordedAudioUrl,
-            createdAt: new Date().toISOString(),
-          };
-
-          setEntries((prev) => [...prev, newEntry]);
-        }
-
-        setLastExtractedEntryNumber(currentEntryNum);
-        recorder.setState('Ready');
-      } catch (err: any) {
-        console.error('Voice-to-Data Processing Error:', err);
-        recorder.setErrorMessage(err.message || 'Processing failed. Please try again.');
-        recorder.setState('Error');
-      } finally {
-        setIsProcessing(false);
-      }
+      await processAudioInput(blob, 'recording.webm');
     } else {
       await recorder.startRecording();
     }
+  };
+
+  // Handle uploaded audio file
+  const handleUploadAudio = async (file: File) => {
+    if (!file) return;
+    if (recorder.state === 'Recording') {
+      await recorder.stopRecording();
+    }
+    await processAudioInput(file, file.name);
   };
 
   // Direct manual entry addition
@@ -231,11 +376,17 @@ export default function VoiceDataPage() {
         audioUrl: null,
         createdAt: new Date().toISOString(),
       };
-      setEntries((prev) => [...prev, newEntry]);
+      updateEntriesWithHistory((prev) => [...prev, newEntry]);
     } else {
       const defaultFieldValues: Record<string, any> = {};
-      (activeTemplate.fields || []).forEach((f) => {
-        defaultFieldValues[f.extractionKey] = f.defaultValue ?? (f.type === 'boolean' ? false : '');
+      activeTemplate.fields.forEach((f) => {
+        if (f.type === 'boolean') {
+          defaultFieldValues[f.extractionKey] = false;
+        } else if (f.type === 'date' || isDateField(f.extractionKey) || isDateField(f.name)) {
+          defaultFieldValues[f.extractionKey] = getTodayString();
+        } else {
+          defaultFieldValues[f.extractionKey] = f.defaultValue || '';
+        }
       });
 
       let initialTableRows: Array<Record<string, any>> = [];
@@ -262,21 +413,49 @@ export default function VoiceDataPage() {
         audioUrl: null,
         createdAt: new Date().toISOString(),
       };
-      setEntries((prev) => [...prev, newEntry]);
+      updateEntriesWithHistory((prev) => [...prev, newEntry]);
     }
   };
 
-  // Entry updates (inline editing)
+  // Entry updates (inline editing with Auto-Fill support & date normalization)
   const handleUpdateEntryField = (entryId: string, fieldKey: string, value: any) => {
     setEntries((prev) =>
       prev.map((e) => {
         if (e.id !== entryId) return e;
+        const currentTmpl = templates.find((t) => t.id === e.templateId) || activeTemplate;
+        const targetField = currentTmpl.fields.find((f) => f.extractionKey === fieldKey);
+
+        let finalValue = value;
+        if (targetField && (targetField.type === 'date' || isDateField(fieldKey) || isDateField(targetField.name))) {
+          // If editing date, normalize if non-empty
+          if (typeof value === 'string' && value.length >= 8) {
+            finalValue = normalizeDateToDDMMYYYY(value);
+          }
+        }
+
+        let updatedValues = {
+          ...e.fieldValues,
+          [fieldKey]: finalValue,
+        };
+
+        let lookupStatus = e.lookupStatus;
+        let invalidLookup = e.invalidLookup;
+        let invalidLookupMessage = e.invalidLookupMessage;
+
+        if (currentTmpl?.autoFill?.enabled && fieldKey === currentTmpl.autoFill.baseFieldKey) {
+          const autoFillRes = applyAutoFill(updatedValues, currentTmpl);
+          updatedValues = autoFillRes.updatedValues;
+          lookupStatus = autoFillRes.lookupStatus;
+          invalidLookup = autoFillRes.invalidLookup;
+          invalidLookupMessage = autoFillRes.invalidLookupMessage;
+        }
+
         return {
           ...e,
-          fieldValues: {
-            ...e.fieldValues,
-            [fieldKey]: value,
-          },
+          fieldValues: updatedValues,
+          lookupStatus,
+          invalidLookup,
+          invalidLookupMessage,
         };
       })
     );
@@ -372,7 +551,7 @@ export default function VoiceDataPage() {
   };
 
   const handleDeleteEntry = (entryId: string) => {
-    setEntries((prev) => {
+    updateEntriesWithHistory((prev) => {
       const remaining = prev.filter((e) => e.id !== entryId);
       // re-number entries
       return remaining.map((e, idx) => ({ ...e, entryNumber: idx + 1 }));
@@ -385,10 +564,17 @@ export default function VoiceDataPage() {
     try {
       setIsSavingAll(true);
       setSaveSuccessMsg(null);
-
-      const today = new Date().toISOString().split('T')[0];
       const count = entries.length;
       const parentTitle = `${activeTemplate.name} (${count} ${count === 1 ? 'Entry' : 'Entries'})`;
+
+      // Determine primary date in DD-MM-YYYY format
+      let primaryDate = getTodayString();
+      if (entries[0]?.fieldValues) {
+        const dateKey = Object.keys(entries[0].fieldValues).find((k) => isDateField(k));
+        if (dateKey && entries[0].fieldValues[dateKey]) {
+          primaryDate = normalizeDateToDDMMYYYY(entries[0].fieldValues[dateKey]);
+        }
+      }
 
       const payload: Partial<DataEntryRecord> = {
         templateId: dataMode === 'flexible' ? 'flexible' : activeTemplate.id,
@@ -403,7 +589,7 @@ export default function VoiceDataPage() {
         tableHeaders: entries[0]?.tableHeaders,
         tableRows: entries[0]?.tableRows || [],
         rawTranscript: entries.map((e) => `[Entry #${e.entryNumber}]: ${e.rawTranscript || ''}`).join('\n\n'),
-        date: today,
+        date: primaryDate,
       };
 
       await fetch('/api/data-entries', {
@@ -438,12 +624,45 @@ export default function VoiceDataPage() {
   const handleClearAll = () => {
     if (entries.length === 0) return;
     if (confirm(`Are you sure you want to clear all ${entries.length} current entries?`)) {
-      setEntries([]);
+      updateEntriesWithHistory(() => []);
       setLastTranscript(null);
       setLastAudioUrl(null);
       setLastExtractedEntryNumber(null);
+      setActiveVoiceEditingId(null);
     }
   };
+
+  // 5. Connect Keyboard Shortcuts Engine
+  const { shortcuts, getShortcutDisplay } = useKeyboardShortcuts(
+    {
+      onToggleRecording: handleMicPress,
+      onNewTemplate: () => setShowTemplateManager(true),
+      onAddField: handleAddManualEntry,
+      onSaveAll: handleSaveAll,
+      onEditEntry: () => {
+        if (entries.length > 0) {
+          const targetId = activeVoiceEditingId || entries[entries.length - 1].id;
+          handleVoiceEditEntry(targetId);
+        }
+      },
+      onCancelAction: () => {
+        if (activeVoiceEditingId) {
+          if (recorder.state === 'Recording') recorder.stopRecording();
+          setActiveVoiceEditingId(null);
+        } else if (recorder.state === 'Recording') {
+          recorder.stopRecording();
+        }
+        setShowTemplateManager(false);
+        setShowShortcutsModal(false);
+        setModalMode({ isOpen: false });
+      },
+      onUndo: handleUndo,
+      onPrintReport: handlePrint,
+      onExportExcel: handleExportExcel,
+      onClearAll: handleClearAll,
+    },
+    { enabled: true, userSettingsConfig: settings.keyboardShortcuts }
+  );
 
   // Delete past saved record
   const handleDeleteSavedRecord = async (id: string, e: React.MouseEvent) => {
@@ -487,11 +706,31 @@ export default function VoiceDataPage() {
         </div>
 
         <div className="flex items-center space-x-2 self-stretch sm:self-auto">
+          {undoStack.length > 0 && (
+            <button
+              onClick={handleUndo}
+              className="px-3 py-2 rounded-xl bg-surface hover:bg-surfaceMuted border border-cardBorder text-text text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer"
+              title={`Undo latest action (${getShortcutDisplay('undo') || 'Ctrl + Z'})`}
+            >
+              <Undo2 className="w-3.5 h-3.5 text-secondary" />
+              <span className="hidden sm:inline">Undo</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => setShowShortcutsModal(true)}
+            className="px-3 py-2 rounded-xl bg-surface hover:bg-surfaceMuted border border-cardBorder text-text text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer"
+            title="View active keyboard shortcuts"
+          >
+            <Keyboard className="w-3.5 h-3.5 text-purple-400" />
+            <span className="hidden sm:inline">Shortcuts</span>
+          </button>
+
           <button
             onClick={() => setShowTemplateManager(true)}
-            className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-cardBorder text-text text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer"
+            className="px-3.5 py-2 rounded-xl bg-surface hover:bg-surfaceMuted border border-cardBorder text-text text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer"
           >
-            <Layers className="w-3.5 h-3.5 text-cyan-400" />
+            <Layers className="w-3.5 h-3.5 text-dataColor" />
             <span>Templates ({templates.length})</span>
           </button>
         </div>
@@ -539,6 +778,11 @@ export default function VoiceDataPage() {
             onUpdateTableRow={handleUpdateTableRow}
             onAddTableRow={handleAddTableRow}
             onDeleteTableRow={handleDeleteTableRow}
+            onVoiceEditEntry={handleVoiceEditEntry}
+            activeVoiceEditingId={activeVoiceEditingId}
+            isVoiceEditingProcessing={isVoiceEditingProcessing}
+            voiceEditingStatus={voiceEditingStatus}
+            lastEditedNotification={lastEditedNotification}
           />
         </div>
 
@@ -561,6 +805,7 @@ export default function VoiceDataPage() {
             lastExtractedEntryNumber={lastExtractedEntryNumber}
             onMicPress={handleMicPress}
             onOpenManualEntry={handleAddManualEntry}
+            onUploadAudio={handleUploadAudio}
           />
         </div>
       </div>
@@ -634,7 +879,7 @@ export default function VoiceDataPage() {
                   <div
                     key={r.id}
                     onClick={() => setModalMode({ isOpen: true, existingRecord: r })}
-                    className="p-4 rounded-xl bg-slate-900/80 border border-cardBorder hover:border-slate-600 transition space-y-3 cursor-pointer group shadow-sm"
+                    className="p-4 rounded-xl bg-card border border-cardBorder hover:border-dataColor/50 transition-all space-y-3 cursor-pointer group shadow-sm"
                   >
                     <div className="flex items-center justify-between pb-2 border-b border-cardBorder/60">
                       <div className="min-w-0">
@@ -644,10 +889,10 @@ export default function VoiceDataPage() {
                           </h3>
                         </div>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-slate-800 text-cyan-400 border border-cyan-500/30">
+                          <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-surface text-dataColor border border-dataColor/30">
                             {r.isFlexible ? 'Flexible' : r.templateName}
                           </span>
-                          <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/30">
+                          <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-secondary/15 text-secondary border border-secondary/30">
                             {r.totalEntries || r.entries?.length || 1} {(r.totalEntries || r.entries?.length || 1) === 1 ? 'Entry' : 'Entries'}
                           </span>
                           <span className="text-[10px] text-textSubtle">{formatDateDisplay(r.date)}</span>
@@ -660,14 +905,14 @@ export default function VoiceDataPage() {
                             e.stopPropagation();
                             setModalMode({ isOpen: true, existingRecord: r });
                           }}
-                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-400 hover:text-text transition cursor-pointer"
+                          className="p-1.5 rounded-lg bg-surface hover:bg-surfaceMuted border border-cardBorder text-dataColor hover:text-text transition cursor-pointer"
                           title="View Parent Record & Child Entries"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={(e) => handleDeleteSavedRecord(r.id, e)}
-                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-danger/20 hover:text-danger text-textSubtle transition cursor-pointer"
+                          className="p-1.5 rounded-lg bg-surface hover:bg-danger/20 hover:text-danger border border-cardBorder text-textSubtle transition cursor-pointer"
                           title="Delete Record"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -734,6 +979,61 @@ export default function VoiceDataPage() {
           }}
           onClose={() => setShowTemplateManager(false)}
         />
+      )}
+
+      {/* Keyboard Shortcuts Help Modal */}
+      {showShortcutsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in no-print">
+          <div className="bg-card border border-cardBorder rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between p-4 sm:p-5 border-b border-cardBorder">
+              <div className="flex items-center gap-2">
+                <Keyboard className="w-5 h-5 text-purple-400" />
+                <h3 className="text-base font-bold text-text">Voice to Data Shortcuts</h3>
+              </div>
+              <button
+                onClick={() => setShowShortcutsModal(false)}
+                className="p-1.5 rounded-lg text-textMuted hover:text-text hover:bg-surfaceMuted transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 sm:p-5 space-y-3 overflow-y-auto">
+              <p className="text-xs text-textMuted">
+                Shortcuts are active on the Voice to Data page. Single-key shortcuts (like R) are automatically disabled while typing in text inputs.
+              </p>
+
+              <div className="divide-y divide-cardBorder/60 border border-cardBorder rounded-xl bg-surface/50 overflow-hidden">
+                {shortcuts.map((action) => (
+                  <div key={action.id} className="p-2.5 sm:p-3 flex items-center justify-between gap-3 text-xs">
+                    <div>
+                      <p className="font-semibold text-text">{action.name}</p>
+                      <p className="text-[11px] text-textSubtle">{action.description}</p>
+                    </div>
+                    <kbd className="px-2.5 py-1 rounded-lg bg-background border border-cardBorder font-mono font-bold text-xs text-primary shrink-0 shadow-sm">
+                      {formatDisplayKeyCombo(action.key) || 'Unassigned'}
+                    </kbd>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-cardBorder bg-surface/30 flex items-center justify-between">
+              <a
+                href="/settings#shortcuts"
+                className="text-xs text-primary hover:underline font-semibold"
+              >
+                Customize in Settings →
+              </a>
+              <button
+                onClick={() => setShowShortcutsModal(false)}
+                className="px-4 py-1.5 rounded-xl bg-surface hover:bg-surfaceMuted border border-cardBorder text-text text-xs font-semibold transition cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

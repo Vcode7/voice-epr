@@ -166,7 +166,7 @@ export function TransactionConfirmModal({
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
       <div className="bg-card border border-cardBorder rounded-t-2xl sm:rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Modal Header */}
-        <div className="p-4 sm:p-6 border-b border-cardBorder flex items-center justify-between bg-slate-900/50">
+        <div className="p-4 sm:p-6 border-b border-cardBorder flex items-center justify-between bg-surface/50">
           <div>
             <h2 className="text-base sm:text-xl font-bold text-text flex items-center gap-2">
               <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-secondary" />
@@ -178,7 +178,7 @@ export function TransactionConfirmModal({
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 sm:p-2 rounded-xl text-textMuted hover:text-text hover:bg-slate-800 transition"
+            className="p-1.5 sm:p-2 rounded-xl text-textMuted hover:text-text hover:bg-surface transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -186,12 +186,12 @@ export function TransactionConfirmModal({
 
         {/* Spoken Transcript preview */}
         {extractedData.raw_transcript && (
-          <div className="px-4 sm:px-6 py-2.5 bg-slate-950/60 border-b border-cardBorder flex items-center gap-2">
+          <div className="px-4 sm:px-6 py-2.5 bg-surface/70 border-b border-cardBorder flex items-center gap-2">
             <span className="text-[10px] sm:text-[11px] font-semibold uppercase text-primary tracking-wider shrink-0">
               Spoken:
             </span>
             <span className="text-xs text-textMuted italic truncate">
-              "{extractedData.raw_transcript}"
+              &quot;{extractedData.raw_transcript}&quot;
             </span>
           </div>
         )}
@@ -207,7 +207,7 @@ export function TransactionConfirmModal({
           {entriesList.map((entry, idx) => (
             <div
               key={entry.id}
-              className="p-4 sm:p-5 rounded-xl bg-slate-900/70 border border-cardBorder space-y-3 sm:space-y-4 relative"
+              className="p-4 sm:p-5 rounded-xl bg-surface/60 border border-cardBorder space-y-3 sm:space-y-4 relative"
             >
               <div className="flex items-center justify-between pb-2 border-b border-cardBorder/60">
                 <span className="text-xs font-bold text-primary flex items-center gap-1.5">
@@ -304,7 +304,7 @@ export function TransactionConfirmModal({
                     className="w-full px-3 py-2 rounded-xl bg-background border border-cardBorder text-xs sm:text-sm text-text focus:outline-none focus:border-primary"
                   >
                     {DEFAULT_CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat} className="bg-slate-900 text-text">
+                      <option key={cat} value={cat} className="text-text">
                         {cat}
                       </option>
                     ))}
@@ -321,11 +321,11 @@ export function TransactionConfirmModal({
                     onChange={(e) => updateEntry(idx, 'paymentMethod', e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-background border border-cardBorder text-xs sm:text-sm text-text focus:outline-none focus:border-primary"
                   >
-                    <option value="" className="bg-slate-900 text-textSubtle">
+                    <option value="" className="text-textSubtle">
                       None / Not Mentioned
                     </option>
                     {DEFAULT_PAYMENT_METHODS.map((pm) => (
-                      <option key={pm} value={pm} className="bg-slate-900 text-text">
+                      <option key={pm} value={pm} className="text-text">
                         {pm}
                       </option>
                     ))}
@@ -373,11 +373,11 @@ export function TransactionConfirmModal({
         </div>
 
         {/* Modal Footer */}
-        <div className="p-4 sm:p-6 border-t border-cardBorder bg-slate-900/50 flex items-center justify-between gap-3">
+        <div className="p-4 sm:p-6 border-t border-cardBorder bg-surface/50 flex items-center justify-between gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl border border-cardBorder text-textMuted hover:text-text hover:bg-slate-800 text-xs font-semibold transition"
+            className="px-4 py-2 rounded-xl border border-cardBorder text-textMuted hover:text-text hover:bg-surface text-xs font-semibold transition cursor-pointer"
           >
             Cancel
           </button>

@@ -127,7 +127,7 @@ export function BatchDataEntryViewModal({
       <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-sm overflow-y-auto no-print">
         <div className="bg-card border border-cardBorder rounded-2xl w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
           {/* Modal Header */}
-          <div className="p-4 sm:p-6 border-b border-cardBorder bg-slate-900/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="p-4 sm:p-6 border-b border-cardBorder bg-surface/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-xs font-bold font-mono">
@@ -160,20 +160,20 @@ export function BatchDataEntryViewModal({
               {/* Print All */}
               <button
                 onClick={handlePrintAll}
-                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-cardBorder text-text text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer hover:border-cyan-500/50"
+                className="px-3.5 py-2 rounded-xl bg-surface hover:bg-surfaceMuted border border-cardBorder text-text text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer hover:border-dataColor/50 shadow-sm active:scale-95"
                 title="Print all child entries in this record"
               >
-                <Printer className="w-3.5 h-3.5 text-cyan-400" />
+                <Printer className="w-3.5 h-3.5 text-dataColor" />
                 <span>Print All ({childEntries.length})</span>
               </button>
 
               {/* Export All to Excel */}
               <button
                 onClick={handleExportAllToExcel}
-                className="px-3.5 py-2 rounded-xl bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+                className="px-3.5 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 hover:border-emerald-500/50 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-sm active:scale-95"
                 title="Export all child entries to Excel"
               >
-                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 <span>Export All Excel</span>
               </button>
 
@@ -181,7 +181,7 @@ export function BatchDataEntryViewModal({
               <button
                 onClick={handleDeleteParent}
                 disabled={deleting}
-                className="p-2 rounded-xl bg-slate-800 hover:bg-danger/20 hover:text-danger text-textSubtle border border-cardBorder text-xs transition cursor-pointer"
+                className="p-2 rounded-xl bg-surface hover:bg-danger/15 hover:text-danger text-textSubtle border border-cardBorder hover:border-danger/30 text-xs transition cursor-pointer shadow-sm active:scale-95"
                 title="Delete this entire record from database"
               >
                 <Trash2 className="w-4 h-4" />
@@ -190,7 +190,7 @@ export function BatchDataEntryViewModal({
               {/* Close Modal */}
               <button
                 onClick={onClose}
-                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-textSubtle hover:text-text border border-cardBorder text-xs transition cursor-pointer ml-1"
+                className="p-2 rounded-xl bg-surface hover:bg-surfaceMuted text-textSubtle hover:text-text border border-cardBorder text-xs transition cursor-pointer ml-1 shadow-sm active:scale-95"
                 title="Close"
               >
                 <X className="w-4 h-4" />
@@ -212,7 +212,7 @@ export function BatchDataEntryViewModal({
             {childEntries.map((entry, idx) => (
               <div
                 key={entry.id || idx}
-                className="bg-card border border-cardBorder rounded-xl p-4 sm:p-5 shadow-sm space-y-3 hover:border-slate-600 transition"
+                className="bg-card border border-cardBorder rounded-xl p-4 sm:p-5 shadow-sm space-y-3 hover:border-primary/40 transition"
               >
                 {/* Entry Header & Specific Per-Entry Actions */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-cardBorder/60 pb-3">
@@ -236,10 +236,10 @@ export function BatchDataEntryViewModal({
                         onClick={() =>
                           setExpandedAudioId((prev) => (prev === (entry.id || String(idx)) ? null : (entry.id || String(idx))))
                         }
-                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition cursor-pointer ${
+                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition cursor-pointer border shadow-sm ${
                           expandedAudioId === (entry.id || String(idx))
-                            ? 'bg-cyan-500 text-slate-950 font-bold'
-                            : 'bg-slate-800 text-cyan-400 hover:bg-slate-700'
+                            ? 'bg-dataColor text-white border-dataColor font-bold'
+                            : 'bg-surface text-dataColor hover:bg-surfaceMuted border-cardBorder'
                         }`}
                       >
                         <Volume2 className="w-3.5 h-3.5" />
@@ -250,20 +250,20 @@ export function BatchDataEntryViewModal({
                     {/* Print single entry */}
                     <button
                       onClick={() => handlePrintSingle(entry)}
-                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-cardBorder text-text text-xs font-semibold flex items-center gap-1 transition cursor-pointer hover:border-cyan-500/50"
+                      className="px-2.5 py-1 rounded-lg bg-surface hover:bg-surfaceMuted border border-cardBorder text-text text-xs font-semibold flex items-center gap-1 transition cursor-pointer hover:border-dataColor/50 shadow-sm"
                       title="Print only this specific entry"
                     >
-                      <Printer className="w-3 h-3 text-cyan-400" />
+                      <Printer className="w-3 h-3 text-dataColor" />
                       <span className="text-[10px]">Print Entry</span>
                     </button>
 
                     {/* Export single entry */}
                     <button
                       onClick={() => handleExportSingleToExcel(entry)}
-                      className="px-2.5 py-1 rounded-lg bg-emerald-950 hover:bg-emerald-900 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
+                      className="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-semibold flex items-center gap-1 transition cursor-pointer shadow-sm"
                       title="Export only this specific entry to Excel"
                     >
-                      <FileSpreadsheet className="w-3 h-3 text-emerald-400" />
+                      <FileSpreadsheet className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                       <span className="text-[10px]">Excel</span>
                     </button>
                   </div>
@@ -271,18 +271,18 @@ export function BatchDataEntryViewModal({
 
                 {/* Inline Audio Player if expanded */}
                 {expandedAudioId === (entry.id || String(idx)) && entry.audioUrl && (
-                  <div className="p-2.5 bg-slate-950/80 rounded-xl border border-cardBorder">
+                  <div className="p-2.5 bg-surface/90 rounded-xl border border-cardBorder">
                     <VoiceAudioPlayer audioUrl={entry.audioUrl} />
                   </div>
                 )}
 
                 {/* Voice Transcript Quote */}
                 {entry.rawTranscript && (
-                  <div className="p-2.5 bg-slate-950/60 rounded-lg border-l-2 border-cyan-500 text-xs text-textMuted italic flex items-start gap-2">
-                    <span className="text-[10px] font-bold uppercase not-italic text-cyan-400 shrink-0">
+                  <div className="p-2.5 bg-surface border border-cardBorder border-l-2 border-l-dataColor rounded-lg text-xs text-textMuted italic flex items-start gap-2">
+                    <span className="text-[10px] font-bold uppercase not-italic text-dataColor shrink-0">
                       Voice Dictation:
                     </span>
-                    <span className="text-slate-300">"{entry.rawTranscript}"</span>
+                    <span className="text-text font-medium">&quot;{entry.rawTranscript}&quot;</span>
                   </div>
                 )}
 
@@ -294,7 +294,7 @@ export function BatchDataEntryViewModal({
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 text-xs">
                     {entry.mode === 'flexible' && entry.flexibleFields && entry.flexibleFields.length > 0 ? (
                       entry.flexibleFields.map((f, i) => (
-                        <div key={i} className="p-2 rounded-lg bg-slate-900/90 border border-cardBorder/60">
+                        <div key={i} className="p-2 rounded-lg bg-surface border border-cardBorder/60">
                           <span className="text-[10px] text-textSubtle uppercase font-semibold block truncate">
                             {f.name}
                           </span>
@@ -305,7 +305,7 @@ export function BatchDataEntryViewModal({
                       ))
                     ) : (
                       Object.entries(entry.fieldValues || {}).map(([k, v], i) => (
-                        <div key={i} className="p-2 rounded-lg bg-slate-900/90 border border-cardBorder/60">
+                        <div key={i} className="p-2 rounded-lg bg-surface border border-cardBorder/60">
                           <span className="text-[10px] text-textSubtle uppercase font-semibold block truncate">
                             {k}
                           </span>
@@ -328,9 +328,9 @@ export function BatchDataEntryViewModal({
                       </span>
                     </div>
 
-                    <div className="overflow-x-auto border border-cardBorder rounded-lg bg-slate-950/40">
+                    <div className="overflow-x-auto border border-cardBorder rounded-lg bg-surface/40">
                       <table className="w-full text-xs text-left">
-                        <thead className="bg-slate-950 text-textSubtle font-bold border-b border-cardBorder">
+                        <thead className="bg-surface text-textSubtle font-bold border-b border-cardBorder">
                           <tr>
                             <th className="p-2 w-8 text-center">#</th>
                             {entry.tableHeaders && entry.tableHeaders.length > 0 ? (
@@ -350,7 +350,7 @@ export function BatchDataEntryViewModal({
                         </thead>
                         <tbody className="divide-y divide-cardBorder/40">
                           {entry.tableRows.map((row, rowIdx) => (
-                            <tr key={rowIdx} className="hover:bg-slate-800/40">
+                            <tr key={rowIdx} className="hover:bg-surface/60 transition-colors">
                               <td className="p-2 text-center text-textSubtle font-mono text-[10px]">{rowIdx + 1}</td>
                               {Array.isArray(row) ? (
                                 row.map((cell, colIdx) => (
@@ -373,13 +373,13 @@ export function BatchDataEntryViewModal({
           </div>
 
           {/* Modal Footer */}
-          <div className="p-4 sm:p-6 border-t border-cardBorder bg-slate-900/60 flex items-center justify-between">
+          <div className="p-4 sm:p-6 border-t border-cardBorder bg-surface/50 flex items-center justify-between">
             <span className="text-xs text-textMuted">
               Parent ID: <code className="font-mono text-[11px] text-textSubtle">{record.id}</code>
             </span>
             <button
               onClick={onClose}
-              className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-cardBorder text-text text-xs font-bold transition cursor-pointer"
+              className="px-5 py-2 rounded-xl bg-surface hover:bg-surfaceMuted border border-cardBorder text-text text-xs font-bold transition cursor-pointer"
             >
               Done
             </button>

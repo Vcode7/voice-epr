@@ -288,17 +288,92 @@ export class GroqService {
     };
   }
 
+  public static matchAllowedOption(rawValue: any, options: string[]): string | undefined {
+    if (rawValue === undefined || rawValue === null || options.length === 0) return undefined;
+    const str = String(rawValue).trim();
+    if (!str) return undefined;
+    const lower = str.toLowerCase();
+
+    const exact = options.find((opt) => opt.toLowerCase() === lower);
+    if (exact) return exact;
+
+    for (const opt of options) {
+      const escaped = opt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`\\b${escaped}\\b`, 'i');
+      if (regex.test(str)) return opt;
+    }
+
+    if (options.includes('A') && /\b(shift\s*a|1st\s*shift|first\s*shift|morning\s*shift|shift\s*1)\b/i.test(str)) return 'A';
+    if (options.includes('B') && /\b(shift\s*b|2nd\s*shift|second\s*shift|evening\s*shift|afternoon\s*shift|shift\s*2)\b/i.test(str)) return 'B';
+    if (options.includes('C') && /\b(shift\s*c|3rd\s*shift|third\s*shift|night\s*shift|shift\s*3)\b/i.test(str)) return 'C';
+
+    const sub = options.find((opt) => lower.includes(opt.toLowerCase()) || opt.toLowerCase().includes(lower));
+    if (sub) return sub;
+
+    return undefined;
+  }
+
+  public static matchOptionFromTranscript(
+    transcript: string,
+    fieldName: string,
+    extractionKey: string,
+    options: string[]
+  ): string | undefined {
+    if (!transcript || options.length === 0) return undefined;
+    const fLower = fieldName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const kLower = extractionKey.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    if ((fLower.includes('shift') || kLower.includes('shift'))) {
+      if (options.includes('A') && /\b(shift\s*a|1st\s*shift|first\s*shift|morning\s*shift|shift\s*1)\b/i.test(transcript)) return 'A';
+      if (options.includes('B') && /\b(shift\s*b|2nd\s*shift|second\s*shift|evening\s*shift|afternoon\s*shift|shift\s*2)\b/i.test(transcript)) return 'B';
+      if (options.includes('C') && /\b(shift\s*c|3rd\s*shift|third\s*shift|night\s*shift|shift\s*3)\b/i.test(transcript)) return 'C';
+    }
+
+    for (const opt of options) {
+      const escaped = opt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const optRegex = new RegExp(`(?:${fieldName}|${extractionKey})\\s*(?:is|:|no|code|was|-|number)?\\s*\\b${escaped}\\b`, 'i');
+      if (optRegex.test(transcript)) return opt;
+    }
+
+    for (const opt of options) {
+      const escaped = opt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const pattern = new RegExp(`\\b${escaped}\\s*(?:${fieldName}|${extractionKey})\\b|\\b(?:${fieldName}|${extractionKey})\\s*${escaped}\\b`, 'i');
+      if (pattern.test(transcript)) return opt;
+    }
+
+    for (const opt of options) {
+      if (opt.length > 1) {
+        const escaped = opt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const optRegex = new RegExp(`\\b${escaped}\\b`, 'i');
+        if (optRegex.test(transcript)) return opt;
+      }
+    }
+
+    return undefined;
+  }
+
   public static localHeuristicCustomDataParser(transcript: string, template: DataTemplate): ExtractedDataResult {
     const fieldValues: Record<string, any> = {};
 
     template.fields.forEach((f) => {
+      if (f.options && f.options.length > 0) {
+        const fromTranscript = GroqService.matchOptionFromTranscript(transcript, f.name, f.extractionKey, f.options);
+        if (fromTranscript) {
+          fieldValues[f.extractionKey] = fromTranscript;
+          return;
+        }
+      }
+
       const fieldLower = f.name.toLowerCase();
       const keyLower = f.extractionKey.toLowerCase();
       const regex = new RegExp(`(?:${fieldLower}|${keyLower})\\s*(?:is|:|number|no|code|was)?\\s*([a-zA-Z0-9-/:_.]+)`, 'i');
       const match = transcript.match(regex);
       if (match && match[1]) {
         let val: any = match[1].trim();
-        if (f.type === 'number') {
+        if (f.options && f.options.length > 0) {
+          const matchedOpt = GroqService.matchAllowedOption(val, f.options);
+          val = matchedOpt || val;
+        } else if (f.type === 'number') {
           const num = parseFloat(val);
           val = isNaN(num) ? val : num;
         }

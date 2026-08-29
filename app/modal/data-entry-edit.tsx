@@ -926,14 +926,50 @@ export default function DataEntryEditModal() {
                       <Text style={styles.fieldLabel}>{field.name}</Text>
                       <Text style={styles.fieldKeyBadge}>{field.extractionKey}</Text>
                     </View>
-                    <TextInput
-                      style={styles.fieldInput}
-                      value={fieldValues[field.extractionKey] || ''}
-                      onChangeText={(val) => handleFieldChange(field.extractionKey, val)}
-                      placeholder={field.placeholder || `Enter ${field.name}`}
-                      placeholderTextColor={COLORS.textSubtle}
-                      keyboardType={field.type === 'number' ? 'numeric' : 'default'}
-                    />
+                    {field.type === 'select' || (field.options && field.options.length > 0) ? (
+                      <View style={{ marginTop: 4 }}>
+                        <View style={styles.optionPillsContainer}>
+                          {(field.options || []).map((opt) => {
+                            const isSelected = String(fieldValues[field.extractionKey] || '').toLowerCase() === opt.toLowerCase();
+                            return (
+                              <TouchableOpacity
+                                key={opt}
+                                style={[
+                                  styles.optionPill,
+                                  isSelected && styles.optionPillActive,
+                                ]}
+                                onPress={() => handleFieldChange(field.extractionKey, opt)}
+                              >
+                                <Text
+                                  style={[
+                                    styles.optionPillText,
+                                    isSelected && styles.optionPillTextActive,
+                                  ]}
+                                >
+                                  {opt}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                        <TextInput
+                          style={[styles.fieldInput, { marginTop: 6 }]}
+                          value={fieldValues[field.extractionKey] || ''}
+                          onChangeText={(val) => handleFieldChange(field.extractionKey, val)}
+                          placeholder={field.placeholder || `Or enter custom ${field.name}`}
+                          placeholderTextColor={COLORS.textSubtle}
+                        />
+                      </View>
+                    ) : (
+                      <TextInput
+                        style={styles.fieldInput}
+                        value={fieldValues[field.extractionKey] || ''}
+                        onChangeText={(val) => handleFieldChange(field.extractionKey, val)}
+                        placeholder={field.placeholder || `Enter ${field.name}`}
+                        placeholderTextColor={COLORS.textSubtle}
+                        keyboardType={field.type === 'number' ? 'numeric' : 'default'}
+                      />
+                    )}
                   </View>
                 ))}
               </View>
@@ -1700,5 +1736,30 @@ const styles = StyleSheet.create({
     color: COLORS.danger,
     fontSize: 14,
     fontWeight: '700',
+  },
+  optionPillsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  optionPill: {
+    backgroundColor: COLORS.card,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+  },
+  optionPillActive: {
+    backgroundColor: COLORS.dataColor,
+    borderColor: COLORS.dataColor,
+  },
+  optionPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.textMuted,
+  },
+  optionPillTextActive: {
+    color: '#FFFFFF',
   },
 });

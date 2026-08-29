@@ -208,7 +208,7 @@ export function ReceiptEditModal({
       <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-md overflow-y-auto no-print">
         <div className="bg-card border border-cardBorder rounded-t-2xl sm:rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
           {/* Header */}
-          <div className="p-4 sm:p-5 border-b border-cardBorder flex items-center justify-between bg-slate-900/50">
+          <div className="p-4 sm:p-5 border-b border-cardBorder flex items-center justify-between bg-surface/50">
             <div>
               <h2 className="text-base sm:text-lg font-bold text-text flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-secondary" />
@@ -221,12 +221,12 @@ export function ReceiptEditModal({
 
             <div className="flex items-center space-x-2">
               {/* View / Edit Mode Toggle */}
-              <div className="flex bg-slate-950 p-0.5 rounded-lg border border-cardBorder text-xs">
+              <div className="flex bg-surface p-0.5 rounded-lg border border-cardBorder text-xs">
                 <button
                   type="button"
                   onClick={() => setViewMode('edit')}
-                  className={`px-3 py-1 rounded-md font-semibold transition ${
-                    viewMode === 'edit' ? 'bg-primary text-white' : 'text-textMuted hover:text-text'
+                  className={`px-3 py-1 rounded-md font-semibold transition cursor-pointer ${
+                    viewMode === 'edit' ? 'bg-primary text-white shadow-sm' : 'text-textMuted hover:text-text'
                   }`}
                 >
                   Form Editor
@@ -234,15 +234,15 @@ export function ReceiptEditModal({
                 <button
                   type="button"
                   onClick={() => setViewMode('preview')}
-                  className={`px-3 py-1 rounded-md font-semibold transition ${
-                    viewMode === 'preview' ? 'bg-primary text-white' : 'text-textMuted hover:text-text'
+                  className={`px-3 py-1 rounded-md font-semibold transition cursor-pointer ${
+                    viewMode === 'preview' ? 'bg-primary text-white shadow-sm' : 'text-textMuted hover:text-text'
                   }`}
                 >
                   Invoice View
                 </button>
               </div>
 
-              <button onClick={onClose} className="p-1.5 rounded-xl text-textMuted hover:text-text hover:bg-slate-800 transition">
+              <button onClick={onClose} className="p-1.5 rounded-xl text-textMuted hover:text-text hover:bg-surface transition cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -259,7 +259,7 @@ export function ReceiptEditModal({
             {viewMode === 'preview' ? (
               /* Direct On-Screen Preview of selected invoice format */
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-900/60 border border-cardBorder">
+                <div className="flex items-center justify-between p-3 rounded-xl bg-surface/60 border border-cardBorder">
                   <span className="text-xs text-textMuted font-semibold flex items-center gap-1.5">
                     <LayoutTemplate className="w-4 h-4 text-primary" />
                     Format:
@@ -300,7 +300,7 @@ export function ReceiptEditModal({
               /* Form Editor */
               <div className="space-y-4 sm:space-y-6">
                 {/* Bill To Customer Information */}
-                <div className="p-4 rounded-xl bg-slate-900/60 border border-cardBorder space-y-3">
+                <div className="p-4 rounded-xl bg-surface/60 border border-cardBorder space-y-3">
                   <span className="text-xs font-bold uppercase text-primary tracking-wider block">
                     Bill To Details (Customer)
                   </span>
@@ -360,8 +360,8 @@ export function ReceiptEditModal({
                   </div>
                 </div>
 
-                {/* Tax & Layout Format Options */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 rounded-xl bg-slate-900/60 border border-cardBorder">
+                {/* Invoice Metadata */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 rounded-xl bg-surface/60 border border-cardBorder">
                   <div>
                     <label className="block text-[10px] sm:text-[11px] font-semibold uppercase text-textSubtle mb-1">
                       Tax Type
@@ -407,9 +407,9 @@ export function ReceiptEditModal({
                 </div>
 
                 {/* Line Items Table with HSN/SAC Column */}
-                <div className="border border-cardBorder rounded-xl overflow-x-auto bg-slate-900/40">
+                <div className="border border-cardBorder rounded-xl overflow-x-auto bg-surface/40">
                   <table className="w-full text-left text-xs min-w-[550px]">
-                    <thead className="bg-slate-800/80 text-[10px] sm:text-[11px] font-bold uppercase text-textMuted border-b border-cardBorder">
+                    <thead className="bg-surface text-[10px] sm:text-[11px] font-bold uppercase text-textSubtle border-b border-cardBorder">
                       <tr>
                         <th className="p-2.5 w-8">#</th>
                         <th className="p-2.5">Item Description</th>
@@ -423,7 +423,7 @@ export function ReceiptEditModal({
                     </thead>
                     <tbody className="divide-y divide-cardBorder/60">
                       {items.map((item, idx) => (
-                        <tr key={item.id} className="hover:bg-slate-800/30 transition">
+                        <tr key={item.id} className="hover:bg-surface/50 transition">
                           <td className="p-2.5 text-textSubtle font-medium">{idx + 1}</td>
                           <td className="p-2">
                             <input
@@ -517,7 +517,7 @@ export function ReceiptEditModal({
                     />
                   </div>
 
-                  <div className="rounded-xl bg-slate-900/80 border border-cardBorder p-4 space-y-2 text-xs">
+                  <div className="rounded-xl bg-surface/80 border border-cardBorder p-4 space-y-2 text-xs">
                     <div className="flex justify-between text-textMuted">
                       <span>Subtotal</span>
                       <span className="font-semibold text-text">{formatCurrency(subtotal)}</span>
@@ -564,11 +564,11 @@ export function ReceiptEditModal({
           </div>
 
           {/* Modal Footer */}
-          <div className="p-4 sm:p-5 border-t border-cardBorder bg-slate-900/50 flex items-center justify-between gap-2">
+          <div className="p-4 sm:p-5 border-t border-cardBorder bg-surface/50 flex items-center justify-between gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl border border-cardBorder text-textMuted hover:text-text hover:bg-slate-800 text-xs font-semibold transition"
+              className="px-4 py-2 rounded-xl border border-cardBorder text-textMuted hover:text-text hover:bg-surface text-xs font-semibold transition cursor-pointer"
             >
               Close
             </button>
@@ -578,7 +578,7 @@ export function ReceiptEditModal({
                 type="button"
                 disabled={saving}
                 onClick={triggerPrint}
-                className="px-3 sm:px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-cardBorder text-text text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
+                className="px-3 sm:px-4 py-2 rounded-xl bg-surface hover:bg-surfaceMuted border border-cardBorder text-text text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
               >
                 <Printer className="w-3.5 h-3.5 text-textMuted" />
                 <span>Print Invoice / Bill</span>

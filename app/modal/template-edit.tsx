@@ -20,6 +20,8 @@ const FIELD_TYPES: { type: FieldType; label: string; icon: any }[] = [
   { type: 'number', label: 'Number', icon: 'calculator' },
   { type: 'date', label: 'Date', icon: 'calendar' },
   { type: 'time', label: 'Time', icon: 'time' },
+  { type: 'select', label: 'Select / Options', icon: 'list' },
+  { type: 'boolean', label: 'Yes/No', icon: 'checkbox-outline' },
 ];
 
 export default function TemplateEditModal() {
@@ -180,15 +182,31 @@ export default function TemplateEditModal() {
 
     try {
       setSaving(true);
+      const sanitizedFields = fields.map((f) => ({
+        ...f,
+        name: f.name.trim(),
+        extractionKey: f.extractionKey.trim() || toSlugKey(f.name),
+        options: f.type === 'select' && f.options ? f.options.filter(Boolean) : undefined,
+      }));
+
+      const sanitizedTableFields = hasTable
+        ? tableFields.map((col) => ({
+            ...col,
+            name: col.name.trim(),
+            extractionKey: col.extractionKey.trim() || toSlugKey(col.name),
+            options: col.type === 'select' && col.options ? col.options.filter(Boolean) : undefined,
+          }))
+        : [];
+
       const templateToSave: DataTemplate = {
         id: params.templateId || `template_${Date.now()}`,
         name: name.trim(),
         description: description.trim(),
         isDefault: false,
-        fields,
+        fields: sanitizedFields,
         hasTable,
         tableTitle: tableTitle.trim() || 'Repeated Entries',
-        tableFields: hasTable ? tableFields : [],
+        tableFields: sanitizedTableFields,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -278,7 +296,7 @@ export default function TemplateEditModal() {
                     style={styles.miniInput}
                     value={field.name}
                     onChangeText={(val) => handleUpdateField(idx, 'name', val)}
-                    placeholder="e.g. Part No"
+                    placeholder="e.g. Shift"
                     placeholderTextColor={COLORS.textSubtle}
                   />
                 </View>
@@ -289,7 +307,7 @@ export default function TemplateEditModal() {
                     style={[styles.miniInput, { color: COLORS.dataColor, fontFamily: 'monospace' }]}
                     value={field.extractionKey}
                     onChangeText={(val) => handleUpdateField(idx, 'extractionKey', val)}
-                    placeholder="e.g. part_no"
+                    placeholder="e.g. shift"
                     placeholderTextColor={COLORS.textSubtle}
                     autoCapitalize="none"
                   />
@@ -297,28 +315,56 @@ export default function TemplateEditModal() {
               </View>
 
               {/* Type Selectors */}
-              <View style={styles.typeSelectorRow}>
-                {FIELD_TYPES.map((ft) => {
-                  const isSelected = field.type === ft.type;
-                  return (
-                    <TouchableOpacity
-                      key={ft.type}
-                      style={[styles.typeChip, isSelected && styles.typeChipSelected]}
-                      onPress={() => handleUpdateField(idx, 'type', ft.type)}
-                    >
-                      <Ionicons
-                        name={ft.icon}
-                        size={12}
-                        color={isSelected ? '#FFFFFF' : COLORS.textMuted}
-                        style={{ marginRight: 4 }}
-                      />
-                      <Text style={[styles.typeChipText, isSelected && styles.typeChipTextSelected]}>
-                        {ft.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 6 }}>
+                <View style={styles.typeSelectorRow}>
+                  {FIELD_TYPES.map((ft) => {
+                    const isSelected = field.type === ft.type;
+                    return (
+                      <TouchableOpacity
+                        key={ft.type}
+                        style={[styles.typeChip, isSelected && styles.typeChipSelected]}
+                        onPress={() => handleUpdateField(idx, 'type', ft.type)}
+                      >
+                        <Ionicons
+                          name={ft.icon}
+                          size={12}
+                          color={isSelected ? '#FFFFFF' : COLORS.textMuted}
+                          style={{ marginRight: 4 }}
+                        />
+                        <Text style={[styles.typeChipText, isSelected && styles.typeChipTextSelected]}>
+                          {ft.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </ScrollView>
+
+              {/* Fixed / Allowed Values Editor */}
+              {field.type === 'select' && (
+                <View style={styles.optionsBox}>
+                  <Text style={styles.optionsBoxTitle}>Fixed / Allowed Values (Comma-separated)</Text>
+                  <TextInput
+                    style={styles.optionsInput}
+                    value={(field.options || []).join(', ')}
+                    onChangeText={(val) => {
+                      const opts = val.split(',').map((s) => s.trim()).filter(Boolean);
+                      handleUpdateField(idx, 'options', opts);
+                    }}
+                    placeholder="e.g. A, B, C"
+                    placeholderTextColor={COLORS.textSubtle}
+                  />
+                  {field.options && field.options.length > 0 && (
+                    <View style={styles.optionsChipsRow}>
+                      {field.options.map((opt, oIdx) => (
+                        <View key={oIdx} style={styles.optionTag}>
+                          <Text style={styles.optionTagText}>{opt}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              )}
             </View>
           ))}
         </View>
@@ -380,7 +426,7 @@ export default function TemplateEditModal() {
                         style={styles.miniInput}
                         value={col.name}
                         onChangeText={(val) => handleUpdateTableColumn(idx, 'name', val)}
-                        placeholder="e.g. Start Time"
+                        placeholder="e.g. Status"
                         placeholderTextColor={COLORS.textSubtle}
                       />
                     </View>
@@ -391,37 +437,65 @@ export default function TemplateEditModal() {
                         style={[styles.miniInput, { color: COLORS.dataColor, fontFamily: 'monospace' }]}
                         value={col.extractionKey}
                         onChangeText={(val) => handleUpdateTableColumn(idx, 'extractionKey', val)}
-                        placeholder="e.g. start_time"
+                        placeholder="e.g. status"
                         placeholderTextColor={COLORS.textSubtle}
                         autoCapitalize="none"
                       />
                     </View>
                   </View>
 
-                  <View style={styles.typeSelectorRow}>
-                    {FIELD_TYPES.map((ft) => {
-                      const isSelected = col.type === ft.type;
-                      return (
-                        <TouchableOpacity
-                          key={ft.type}
-                          style={[styles.typeChip, isSelected && styles.typeChipSelected]}
-                          onPress={() => handleUpdateTableColumn(idx, 'type', ft.type)}
-                        >
-                          <Ionicons
-                            name={ft.icon}
-                            size={12}
-                            color={isSelected ? '#FFFFFF' : COLORS.textMuted}
-                            style={{ marginRight: 4 }}
-                          />
-                          <Text
-                            style={[styles.typeChipText, isSelected && styles.typeChipTextSelected]}
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 6 }}>
+                    <View style={styles.typeSelectorRow}>
+                      {FIELD_TYPES.map((ft) => {
+                        const isSelected = col.type === ft.type;
+                        return (
+                          <TouchableOpacity
+                            key={ft.type}
+                            style={[styles.typeChip, isSelected && styles.typeChipSelected]}
+                            onPress={() => handleUpdateTableColumn(idx, 'type', ft.type)}
                           >
-                            {ft.label}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
+                            <Ionicons
+                              name={ft.icon}
+                              size={12}
+                              color={isSelected ? '#FFFFFF' : COLORS.textMuted}
+                              style={{ marginRight: 4 }}
+                            />
+                            <Text
+                              style={[styles.typeChipText, isSelected && styles.typeChipTextSelected]}
+                            >
+                              {ft.label}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </ScrollView>
+
+                  {/* Fixed / Allowed Values Editor for Table Column */}
+                  {col.type === 'select' && (
+                    <View style={styles.optionsBox}>
+                      <Text style={styles.optionsBoxTitle}>Fixed / Allowed Column Values (Comma-separated)</Text>
+                      <TextInput
+                        style={styles.optionsInput}
+                        value={(col.options || []).join(', ')}
+                        onChangeText={(val) => {
+                          const opts = val.split(',').map((s) => s.trim()).filter(Boolean);
+                          handleUpdateTableColumn(idx, 'options', opts);
+                        }}
+                        placeholder="e.g. Pass, Fail, Rework"
+                        placeholderTextColor={COLORS.textSubtle}
+                      />
+                      {col.options && col.options.length > 0 && (
+                        <View style={styles.optionsChipsRow}>
+                          {col.options.map((opt, oIdx) => (
+                            <View key={oIdx} style={styles.optionTag}>
+                              <Text style={styles.optionTagText}>{opt}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                  )}
                 </View>
               ))}
             </View>
@@ -642,5 +716,49 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '800',
+  },
+  optionsBox: {
+    backgroundColor: COLORS.card,
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(6, 182, 212, 0.3)',
+  },
+  optionsBoxTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.dataColor,
+    marginBottom: 6,
+  },
+  optionsInput: {
+    backgroundColor: COLORS.inputBg,
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: '600',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+  },
+  optionsChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 6,
+    gap: 4,
+  },
+  optionTag: {
+    backgroundColor: 'rgba(6, 182, 212, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(6, 182, 212, 0.35)',
+  },
+  optionTagText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: COLORS.dataColor,
   },
 });

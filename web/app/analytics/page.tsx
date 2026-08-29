@@ -238,7 +238,7 @@ export default function AnalyticsPage() {
                     {formatCurrency(cat.total)} ({cat.percentage}%)
                   </span>
                 </div>
-                <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-cardBorder">
+                <div className="w-full h-2 bg-surfaceMuted rounded-full overflow-hidden border border-cardBorder">
                   <div
                     className="h-full bg-gradient-to-r from-primaryDark to-primary rounded-full transition-all"
                     style={{ width: `${cat.percentage}%` }}
@@ -268,7 +268,7 @@ export default function AnalyticsPage() {
           </div>
 
           {showAddBudget && (
-            <div className="p-3.5 rounded-xl bg-slate-900/80 border border-cardBorder space-y-2.5">
+            <div className="p-3.5 rounded-xl bg-surface border border-cardBorder space-y-2.5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
                   <label className="text-[10px] uppercase font-semibold text-textSubtle block mb-0.5">
@@ -317,7 +317,7 @@ export default function AnalyticsPage() {
               budgetStatuses.map((bs) => (
                 <div
                   key={bs.budget.id}
-                  className="p-3 rounded-xl bg-slate-900/50 border border-cardBorder space-y-1.5"
+                  className="p-3 rounded-xl bg-surface/70 border border-cardBorder space-y-1.5"
                 >
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -339,14 +339,14 @@ export default function AnalyticsPage() {
                       </span>
                       <button
                         onClick={() => handleDeleteBudget(bs.budget.id)}
-                        className="text-textSubtle hover:text-danger p-0.5"
+                        className="text-textSubtle hover:text-danger p-0.5 cursor-pointer"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
 
-                  <div className="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden border border-cardBorder/50">
+                  <div className="w-full h-1.5 bg-surfaceMuted rounded-full overflow-hidden border border-cardBorder/50">
                     <div
                       className={`h-full rounded-full transition-all ${
                         bs.isOverBudget ? 'bg-danger' : bs.isNearLimit ? 'bg-amber-400' : 'bg-secondary'
@@ -377,7 +377,7 @@ export default function AnalyticsPage() {
           </div>
 
           {showAddDebt && (
-            <div className="p-3.5 rounded-xl bg-slate-900/80 border border-cardBorder space-y-2.5">
+            <div className="p-3.5 rounded-xl bg-surface border border-cardBorder space-y-2.5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
                   <label className="text-[10px] uppercase font-semibold text-textSubtle block mb-0.5">
@@ -460,17 +460,17 @@ export default function AnalyticsPage() {
                   key={d.id}
                   className={`p-3 rounded-xl border transition flex items-center justify-between ${
                     d.settled
-                      ? 'bg-slate-900/30 border-cardBorder/40 opacity-60'
-                      : 'bg-slate-900/60 border-cardBorder'
+                      ? 'bg-surface/30 border-cardBorder/40 opacity-60'
+                      : 'bg-surface/70 border-cardBorder'
                   }`}
                 >
                   <div className="flex items-center space-x-2.5 min-w-0">
                     <button
                       onClick={() => handleToggleSettled(d.id)}
-                      className={`p-1 rounded-lg transition shrink-0 ${
+                      className={`p-1 rounded-lg transition shrink-0 cursor-pointer ${
                         d.settled
                           ? 'text-secondary bg-secondary/15'
-                          : 'text-textSubtle hover:text-secondary hover:bg-slate-800'
+                          : 'text-textSubtle hover:text-secondary hover:bg-surfaceMuted'
                       }`}
                     >
                       <CheckCircle2 className="w-4 h-4" />

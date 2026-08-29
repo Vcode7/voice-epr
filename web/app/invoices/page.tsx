@@ -146,13 +146,13 @@ export default function InvoicesPage() {
             <div
               key={rcpt.id}
               onClick={() => setEditingReceipt(rcpt)}
-              className="p-4 sm:p-5 rounded-2xl bg-card border border-cardBorder hover:border-slate-600 transition space-y-3 sm:space-y-4 cursor-pointer group shadow-sm"
+              className="p-4 sm:p-5 rounded-2xl bg-card border border-cardBorder hover:border-primary/40 transition space-y-3 sm:space-y-4 cursor-pointer group shadow-sm"
             >
               <div className="flex items-center justify-between pb-2.5 border-b border-cardBorder/60">
                 <div>
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="font-mono text-primary font-bold text-xs sm:text-sm">{rcpt.receiptNumber}</span>
-                    <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-slate-800 text-textMuted border border-cardBorder">
+                    <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-surface text-textMuted border border-cardBorder">
                       {rcpt.format === 'basic_tax' ? 'Basic Tax (A4)' : 'Standard'}
                     </span>
                     {rcpt.taxType === 'gst' && (
@@ -213,7 +213,7 @@ export default function InvoicesPage() {
                 <div className="flex items-center space-x-1">
                   <button
                     onClick={(e) => handlePrint(rcpt, e)}
-                    className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-textSubtle hover:text-text transition flex items-center gap-1 text-xs font-semibold px-2"
+                    className="p-1 rounded-lg bg-surface hover:bg-surfaceMuted border border-cardBorder text-textSubtle hover:text-text transition flex items-center gap-1 text-xs font-semibold px-2 cursor-pointer"
                   >
                     <Printer className="w-3.5 h-3.5" />
                     <span>Print</span>
@@ -223,13 +223,13 @@ export default function InvoicesPage() {
                       e.stopPropagation();
                       setEditingReceipt(rcpt);
                     }}
-                    className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-textSubtle hover:text-text transition"
+                    className="p-1 rounded-lg bg-surface hover:bg-surfaceMuted border border-cardBorder text-textSubtle hover:text-text transition cursor-pointer"
                   >
                     <Edit2 className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={(e) => handleDelete(rcpt.id, e)}
-                    className="p-1 rounded-lg bg-slate-800 hover:bg-danger/20 hover:text-danger text-textSubtle transition"
+                    className="p-1 rounded-lg bg-surface hover:bg-danger/20 hover:text-danger border border-cardBorder text-textSubtle transition cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>

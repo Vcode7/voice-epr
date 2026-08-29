@@ -11,8 +11,8 @@ import {
   PieChart,
   Layers,
   Settings,
-  Sparkles,
 } from 'lucide-react';
+import { ThemeToggle } from './theme/ThemeToggle';
 
 const NAV_ITEMS = [
   { name: 'Voice Studio', href: '/', icon: Mic },
@@ -28,7 +28,7 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden md:flex w-64 bg-card border-r border-cardBorder flex-col justify-between shrink-0 no-print h-screen sticky top-0">
+    <aside className="hidden md:flex w-64 bg-card border-r border-cardBorder flex-col justify-between shrink-0 no-print h-screen sticky top-0 transition-colors duration-200">
       <div>
         {/* Brand Header */}
         <div className="p-6 border-b border-cardBorder">
@@ -61,7 +61,7 @@ export function Sidebar() {
                 className={`flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
                   isActive
                     ? 'bg-primary text-white shadow-md shadow-primary/25 font-semibold'
-                    : 'text-textMuted hover:bg-slate-800/80 hover:text-text'
+                    : 'text-textMuted hover:bg-surface hover:text-text'
                 }`}
               >
                 <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-textSubtle'}`} />
@@ -72,8 +72,16 @@ export function Sidebar() {
         </nav>
       </div>
 
-      {/* Footer Info Box */}
-      
+      {/* Footer Theme & Status Box */}
+      <div className="p-4 border-t border-cardBorder">
+        <div className="flex items-center justify-between p-2.5 rounded-xl bg-surface/70 border border-cardBorder">
+          <div className="flex flex-col">
+            <span className="text-[11px] font-bold text-text">Appearance</span>
+            <span className="text-[10px] text-textMuted">Theme Switcher</span>
+          </div>
+          <ThemeToggle />
+        </div>
+      </div>
     </aside>
   );
 }

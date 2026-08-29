@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Sparkles, ShieldCheck, AlertCircle, Mic } from 'lucide-react';
+import { Sparkles, Mic } from 'lucide-react';
 import { AskAIModal } from './modals/AskAIModal';
+import { ThemeToggle } from './theme/ThemeToggle';
 
 export function Navbar() {
   const [showAskAI, setShowAskAI] = useState(false);
@@ -21,7 +22,7 @@ export function Navbar() {
 
   return (
     <>
-      <header className="h-14 sm:h-16 bg-card/75 backdrop-blur-md border-b border-cardBorder px-4 sm:px-6 flex items-center justify-between shrink-0 sticky top-0 z-30 no-print">
+      <header className="h-14 sm:h-16 bg-card/85 backdrop-blur-md border-b border-cardBorder px-4 sm:px-6 flex items-center justify-between shrink-0 sticky top-0 z-30 no-print transition-colors duration-200">
         <div className="flex items-center space-x-3">
           {/* Mobile Brand Logo */}
           <Link href="/" className="md:hidden flex items-center space-x-2">
@@ -32,11 +33,11 @@ export function Navbar() {
               Voice EPR
             </span>
           </Link>
-
-          
         </div>
 
         <div className="flex items-center space-x-2 sm:space-x-3">
+          <ThemeToggle />
+
           <button
             onClick={() => setShowAskAI(true)}
             className="flex items-center space-x-1.5 sm:space-x-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-primaryDark to-primary hover:from-primary hover:to-indigo-500 text-white text-xs font-semibold shadow-md shadow-primary/20 transition-all cursor-pointer active:scale-95"

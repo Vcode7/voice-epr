@@ -17,6 +17,8 @@ export interface ExportableEntry {
   createdAt: string;
 }
 
+import { normalizeDateToDDMMYYYY, isDateField } from './dateUtils';
+
 /**
  * Escapes XML special characters for Excel XML format
  */
@@ -78,7 +80,11 @@ export function exportEntriesToExcel(entries: ExportableEntry[], sessionTitle = 
         val = e.fieldValues[fieldName] !== undefined ? String(e.fieldValues[fieldName]) : '';
       }
 
-      const isNum = !isNaN(Number(val)) && val.trim() !== '';
+      if (isDateField(fieldName) && val) {
+        val = normalizeDateToDDMMYYYY(val);
+      }
+
+      const isNum = !isNaN(Number(val)) && val.trim() !== '' && !isDateField(fieldName);
       if (isNum) {
         fieldCellsXml += `<Cell><Data ss:Type="Number">${val}</Data></Cell>`;
       } else {

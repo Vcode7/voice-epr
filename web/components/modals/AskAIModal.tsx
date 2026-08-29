@@ -99,7 +99,7 @@ export function AskAIModal({ onClose }: AskAIModalProps) {
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm">
       <div className="bg-card border border-cardBorder rounded-t-2xl sm:rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-cardBorder flex items-center justify-between bg-slate-900/50">
+        <div className="p-4 sm:p-5 border-b border-cardBorder flex items-center justify-between bg-surface/50">
           <div className="flex items-center space-x-2.5">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-primaryDark to-primary flex items-center justify-center">
               <Sparkles className="w-4 h-4 text-white" />
@@ -109,7 +109,7 @@ export function AskAIModal({ onClose }: AskAIModalProps) {
               <p className="text-[11px] text-textMuted">Natural speech financial analytics</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-textMuted hover:text-text hover:bg-slate-800 transition">
+          <button onClick={onClose} className="p-1.5 rounded-lg text-textMuted hover:text-text hover:bg-surface transition cursor-pointer">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -151,14 +151,14 @@ export function AskAIModal({ onClose }: AskAIModalProps) {
 
           {/* Results */}
           {transcript && (
-            <div className="w-full text-left p-3 rounded-xl bg-slate-900/60 border border-cardBorder space-y-1">
+            <div className="w-full text-left p-3 rounded-xl bg-surface/70 border border-cardBorder space-y-1">
               <span className="text-[10px] font-bold uppercase text-textSubtle tracking-wider">You Asked:</span>
-              <p className="text-xs text-text font-medium italic">"{transcript}"</p>
+              <p className="text-xs text-text font-medium italic">&quot;{transcript}&quot;</p>
             </div>
           )}
 
           {answer && (
-            <div className="w-full text-left p-3.5 sm:p-4 rounded-xl bg-gradient-to-br from-slate-900/90 to-primary/10 border border-primary/30 space-y-1.5">
+            <div className="w-full text-left p-3.5 sm:p-4 rounded-xl bg-surface/90 border border-primary/30 space-y-1.5">
               <div className="flex items-center gap-1.5 text-primary font-bold text-xs">
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>AI Answer:</span>
@@ -169,10 +169,10 @@ export function AskAIModal({ onClose }: AskAIModalProps) {
         </div>
 
         {/* Footer */}
-        <div className="p-3.5 sm:p-4 border-t border-cardBorder bg-slate-900/50 flex justify-end">
+        <div className="p-3.5 sm:p-4 border-t border-cardBorder bg-surface/50 flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-text transition"
+            className="px-4 py-2 rounded-xl bg-surface border border-cardBorder hover:bg-surfaceMuted text-xs font-semibold text-text transition cursor-pointer"
           >
             Close
           </button>

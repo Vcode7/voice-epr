@@ -3,8 +3,9 @@
 import React, { useState } from 'react';
 import { X, Plus, Trash2, Save, Printer, Table, CheckCircle, Edit3 } from 'lucide-react';
 import { DataTemplate, DataEntryRecord, FlexibleExtractedResult, ExtractedDataResult, FlexibleField, TemplateField } from '@/types';
-import { getTodayString } from '@/lib/utils/dateUtils';
+import { getTodayString, normalizeDateToDDMMYYYY, isDateField } from '@/lib/utils/dateUtils';
 import { DEFAULT_MONITORING_DETAILS_TEMPLATE } from '@/lib/constants';
+import { applyAutoFill } from '@/lib/utils/autoFillHelper';
 
 interface DataEntryEditModalProps {
   extractedData?: ExtractedDataResult;
@@ -76,7 +77,19 @@ export function DataEntryEditModal({
     return [];
   });
 
-  const [date, setDate] = useState(existingRecord?.date || getTodayString());
+  const [date, setDate] = useState(() => {
+    if (existingRecord?.date) return normalizeDateToDDMMYYYY(existingRecord.date);
+    return getTodayString();
+  });
+  const [lookupStatus, setLookupStatus] = useState<'valid' | 'invalid' | 'none'>(
+    extractedData?.lookupStatus || 'none'
+  );
+  const [invalidLookup, setInvalidLookup] = useState<boolean>(
+    extractedData?.invalidLookup || false
+  );
+  const [invalidLookupMessage, setInvalidLookupMessage] = useState<string | undefined>(
+    extractedData?.invalidLookupMessage
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -120,9 +133,27 @@ export function DataEntryEditModal({
     setFlexibleTableRows((prev) => prev.filter((_, i) => i !== rowIdx));
   };
 
-  // Template fields helpers
+  // Template fields helpers with Auto-Fill support & date normalization
   const updateTemplateField = (key: string, val: any) => {
-    setFieldValues((prev) => ({ ...prev, [key]: val }));
+    setFieldValues((prev) => {
+      const targetField = template?.fields.find((f) => f.extractionKey === key);
+      let finalVal = val;
+      if (targetField && (targetField.type === 'date' || isDateField(key) || isDateField(targetField.name))) {
+        if (typeof val === 'string' && val.length >= 8) {
+          finalVal = normalizeDateToDDMMYYYY(val);
+        }
+      }
+
+      let updated = { ...prev, [key]: finalVal };
+      if (template?.autoFill?.enabled && key === template.autoFill.baseFieldKey) {
+        const autoFillRes = applyAutoFill(updated, template);
+        updated = autoFillRes.updatedValues;
+        setLookupStatus(autoFillRes.lookupStatus);
+        setInvalidLookup(autoFillRes.invalidLookup);
+        setInvalidLookupMessage(autoFillRes.invalidLookupMessage);
+      }
+      return updated;
+    });
   };
 
   const addTemplateTableRow = () => {
@@ -149,6 +180,17 @@ export function DataEntryEditModal({
     setError(null);
     try {
       setSaving(true);
+      const normalizedDate = normalizeDateToDDMMYYYY(date);
+      const normalizedFieldValues = { ...fieldValues };
+      if (!isFlexible && template?.fields) {
+        template.fields.forEach((f) => {
+          const raw = normalizedFieldValues[f.extractionKey];
+          if (raw && (f.type === 'date' || isDateField(f.extractionKey) || isDateField(f.name))) {
+            normalizedFieldValues[f.extractionKey] = normalizeDateToDDMMYYYY(raw);
+          }
+        });
+      }
+
       const payload: Partial<DataEntryRecord> = {
         templateId: isFlexible ? 'flexible' : template.id,
         templateName: isFlexible ? flexibleTitle : template.name,
@@ -156,13 +198,13 @@ export function DataEntryEditModal({
         title: isFlexible ? flexibleTitle : undefined,
         fieldValues: isFlexible
           ? flexibleFields.reduce((acc, f) => ({ ...acc, [f.name]: f.value }), {})
-          : fieldValues,
+          : normalizedFieldValues,
         flexibleFields: isFlexible ? flexibleFields : undefined,
         tableTitle: isFlexible ? flexibleTableTitle : template.tableTitle,
         tableHeaders: isFlexible ? flexibleTableHeaders : template.tableFields.map((c) => c.name),
         tableRows: isFlexible ? flexibleTableRows : tableRows,
         rawTranscript: flexibleData?.raw_transcript || extractedData?.raw_transcript || existingRecord?.rawTranscript || (isManual ? '[Manual Entry]' : null),
-        date,
+        date: normalizedDate,
       };
 
       const url = existingRecord ? `/api/data-entries/${existingRecord.id}` : '/api/data-entries';
@@ -190,19 +232,22 @@ export function DataEntryEditModal({
 
   const renderFieldInput = (f: TemplateField) => {
     const val = fieldValues[f.extractionKey];
+    const isBase = template?.autoFill?.enabled && template.autoFill.baseFieldKey === f.extractionKey;
+    const isTarget = template?.autoFill?.enabled && template.autoFill.targetFieldKeys.includes(f.extractionKey);
+    const isDate = f.type === 'date' || isDateField(f.extractionKey) || isDateField(f.name);
 
-    if (f.type === 'select') {
+    if (f.type === 'select' || (f.options && f.options.length > 0)) {
       return (
         <select
           value={val ?? ''}
           onChange={(e) => updateTemplateField(f.extractionKey, e.target.value)}
           className="w-full px-3 py-2 rounded-xl bg-background border border-cardBorder text-xs text-text focus:outline-none focus:border-cyan-500 font-medium"
         >
-          <option value="" className="bg-slate-900 text-textSubtle">
+          <option value="" className="text-textSubtle">
             Select {f.name}...
           </option>
           {(f.options || []).map((opt) => (
-            <option key={opt} value={opt} className="bg-slate-900 text-text">
+            <option key={opt} value={opt} className="text-text">
               {opt}
             </option>
           ))}
@@ -220,7 +265,7 @@ export function DataEntryEditModal({
             className={`px-4 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
               isChecked
                 ? 'bg-secondary/20 text-secondary border border-secondary/40'
-                : 'bg-slate-900 text-textMuted border border-cardBorder'
+                : 'bg-background text-textMuted border border-cardBorder'
             }`}
           >
             <span className={`w-2 h-2 rounded-full ${isChecked ? 'bg-secondary' : 'bg-slate-600'}`} />
@@ -232,11 +277,20 @@ export function DataEntryEditModal({
 
     return (
       <input
-        type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : f.type === 'time' ? 'time' : 'text'}
+        type={f.type === 'number' ? 'number' : f.type === 'time' ? 'time' : 'text'}
         value={val ?? ''}
         onChange={(e) => updateTemplateField(f.extractionKey, e.target.value)}
-        placeholder={f.placeholder || `Enter ${f.name}`}
-        className="w-full px-3 py-2 rounded-xl bg-background border border-cardBorder text-xs text-text focus:outline-none focus:border-cyan-500 font-medium"
+        onBlur={(e) => {
+          if (isDate) {
+            updateTemplateField(f.extractionKey, normalizeDateToDDMMYYYY(e.target.value));
+          }
+        }}
+        placeholder={isDate ? 'DD-MM-YYYY (e.g. 28-08-2026)' : (f.placeholder || `Enter ${f.name}`)}
+        className={`w-full px-3 py-2 rounded-xl bg-background border text-xs text-text focus:outline-none font-medium transition ${
+          isBase && invalidLookup
+            ? 'border-danger focus:border-danger ring-1 ring-danger/30'
+            : 'border-cardBorder focus:border-cyan-500'
+        }`}
       />
     );
   };
@@ -245,7 +299,7 @@ export function DataEntryEditModal({
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
       <div className="bg-card border border-cardBorder rounded-t-2xl sm:rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
-        <div className="p-4 sm:p-6 border-b border-cardBorder flex items-center justify-between bg-slate-900/50 no-print">
+        <div className="p-4 sm:p-6 border-b border-cardBorder flex items-center justify-between bg-surface/50 no-print">
           <div>
             <h2 className="text-base sm:text-xl font-bold text-text flex items-center gap-2">
               {isManual ? (
@@ -267,7 +321,7 @@ export function DataEntryEditModal({
                 : 'Review extracted attributes and production table logs.'}
             </p>
           </div>
-          <button onClick={onClose} className="p-1.5 sm:p-2 rounded-xl text-textMuted hover:text-text hover:bg-slate-800 transition">
+          <button onClick={onClose} className="p-1.5 sm:p-2 rounded-xl text-textMuted hover:text-text hover:bg-surface transition cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -281,7 +335,7 @@ export function DataEntryEditModal({
           )}
 
           {/* Date & Title */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 p-3.5 sm:p-4 rounded-xl bg-slate-900/60 border border-cardBorder">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 p-3.5 sm:p-4 rounded-xl bg-surface/60 border border-cardBorder">
             <div>
               <label className="block text-[10px] sm:text-[11px] font-semibold uppercase text-textSubtle mb-1">
                 Record Title
@@ -300,13 +354,23 @@ export function DataEntryEditModal({
                 Log Date
               </label>
               <input
-                type="date"
+                type="text"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-background border border-cardBorder text-xs sm:text-sm text-text focus:outline-none focus:border-cyan-500"
+                onBlur={(e) => setDate(normalizeDateToDDMMYYYY(e.target.value))}
+                placeholder="DD-MM-YYYY (e.g. 28-08-2026)"
+                className="w-full px-3 py-2 rounded-xl bg-background border border-cardBorder text-xs sm:text-sm text-text font-semibold focus:outline-none focus:border-cyan-500"
               />
             </div>
           </div>
+
+          {/* Invalid Lookup Alert */}
+          {invalidLookup && invalidLookupMessage && (
+            <div className="p-3 rounded-xl bg-danger/15 border border-danger/30 text-danger text-xs font-semibold flex items-center gap-2 no-print">
+              <span>⚠️</span>
+              <span>{invalidLookupMessage}</span>
+            </div>
+          )}
 
           {/* Fields Grid */}
           <div>
@@ -328,7 +392,7 @@ export function DataEntryEditModal({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3.5">
               {isFlexible
                 ? flexibleFields.map((f, idx) => (
-                    <div key={f.id || idx} className="p-3 rounded-xl bg-slate-900/50 border border-cardBorder space-y-1 relative">
+                    <div key={f.id || idx} className="p-3 rounded-xl bg-surface/60 border border-cardBorder space-y-1 relative">
                       <div className="flex items-center justify-between">
                         <input
                           type="text"
@@ -354,14 +418,37 @@ export function DataEntryEditModal({
                       />
                     </div>
                   ))
-                : template.fields.map((f) => (
-                    <div key={f.id} className="p-3.5 rounded-xl bg-slate-900/50 border border-cardBorder space-y-1.5">
-                      <label className="block text-[10px] sm:text-[11px] font-bold uppercase text-textSubtle truncate">
-                        {f.name} <span className="text-[10px] lowercase text-textSubtle/60">({f.type})</span>
-                      </label>
-                      {renderFieldInput(f)}
-                    </div>
-                  ))}
+                : template.fields.map((f) => {
+                    const isBase = template?.autoFill?.enabled && template.autoFill.baseFieldKey === f.extractionKey;
+                    const isTarget = template?.autoFill?.enabled && template.autoFill.targetFieldKeys.includes(f.extractionKey);
+                    const val = fieldValues[f.extractionKey];
+
+                    return (
+                      <div key={f.id} className="p-3.5 rounded-xl bg-surface/60 border border-cardBorder space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <label className="block text-[10px] sm:text-[11px] font-bold uppercase text-textSubtle truncate">
+                            {f.name} <span className="text-[10px] lowercase text-textSubtle/60">({f.type})</span>
+                          </label>
+                          {isBase && lookupStatus === 'valid' && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-success/15 text-success border border-success/30">
+                              ✓ Lookup Match
+                            </span>
+                          )}
+                          {isBase && invalidLookup && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-danger/20 text-danger border border-danger/40">
+                              ⚠️ Not in Lookup
+                            </span>
+                          )}
+                          {isTarget && val && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-purple-500/15 text-purple-400 border border-purple-500/30">
+                              ✨ Auto-filled
+                            </span>
+                          )}
+                        </div>
+                        {renderFieldInput(f)}
+                      </div>
+                    );
+                  })}
             </div>
           </div>
 
@@ -382,9 +469,9 @@ export function DataEntryEditModal({
                 </button>
               </div>
 
-              <div className="border border-cardBorder rounded-xl overflow-x-auto bg-slate-900/40">
+              <div className="border border-cardBorder rounded-xl overflow-x-auto bg-surface/40">
                 <table className="w-full text-left text-xs min-w-[500px]">
-                  <thead className="bg-slate-800/80 text-[10px] sm:text-[11px] font-bold uppercase text-textMuted border-b border-cardBorder">
+                  <thead className="bg-surface text-[10px] sm:text-[11px] font-bold uppercase text-textSubtle border-b border-cardBorder">
                     <tr>
                       <th className="p-2.5 sm:p-3 w-8">#</th>
                       {isFlexible
@@ -404,7 +491,7 @@ export function DataEntryEditModal({
                   <tbody className="divide-y divide-cardBorder/60">
                     {isFlexible
                       ? flexibleTableRows.map((row, rowIdx) => (
-                          <tr key={rowIdx} className="hover:bg-slate-800/30 transition">
+                          <tr key={rowIdx} className="hover:bg-surface/50 transition">
                             <td className="p-2.5 sm:p-3 text-textSubtle font-medium">{rowIdx + 1}</td>
                             {flexibleTableHeaders.map((_, colIdx) => (
                               <td key={colIdx} className="p-1.5 sm:p-2">
@@ -427,11 +514,26 @@ export function DataEntryEditModal({
                           </tr>
                         ))
                       : tableRows.map((row, rowIdx) => (
-                          <tr key={rowIdx} className="hover:bg-slate-800/30 transition">
+                          <tr key={rowIdx} className="hover:bg-surface/50 transition">
                             <td className="p-2.5 sm:p-3 text-textSubtle font-medium">{rowIdx + 1}</td>
                             {(template.tableFields || []).map((col) => (
                               <td key={col.id} className="p-1.5 sm:p-2">
-                                {col.type === 'boolean' ? (
+                                {col.type === 'select' || (col.options && col.options.length > 0) ? (
+                                  <select
+                                    value={row[col.extractionKey] ?? ''}
+                                    onChange={(e) => updateTemplateTableCell(rowIdx, col.extractionKey, e.target.value)}
+                                    className="w-full px-2 py-1.5 rounded-lg bg-background border border-cardBorder text-xs text-text focus:outline-none focus:border-cyan-500 font-medium"
+                                  >
+                                    <option value="" className="text-textSubtle">
+                                      Select...
+                                    </option>
+                                    {(col.options || []).map((opt) => (
+                                      <option key={opt} value={opt} className="text-text">
+                                        {opt}
+                                      </option>
+                                    ))}
+                                  </select>
+                                ) : col.type === 'boolean' ? (
                                   <button
                                     type="button"
                                     onClick={() =>
@@ -441,10 +543,10 @@ export function DataEntryEditModal({
                                         !(row[col.extractionKey] === true || row[col.extractionKey] === 'true')
                                       )
                                     }
-                                    className={`px-2.5 py-1 rounded text-[11px] font-bold ${
+                                    className={`px-2.5 py-1 rounded text-[11px] font-bold border transition ${
                                       row[col.extractionKey] === true || row[col.extractionKey] === 'true'
-                                        ? 'bg-secondary/20 text-secondary'
-                                        : 'bg-slate-800 text-textMuted'
+                                        ? 'bg-secondary/20 text-secondary border-secondary/40'
+                                        : 'bg-surface text-textMuted border-cardBorder'
                                     }`}
                                   >
                                     {row[col.extractionKey] === true || row[col.extractionKey] === 'true' ? 'Yes' : 'No'}
@@ -478,11 +580,11 @@ export function DataEntryEditModal({
         </div>
 
         {/* Footer */}
-        <div className="p-4 sm:p-6 border-t border-cardBorder bg-slate-900/50 flex items-center justify-between no-print gap-2">
+        <div className="p-4 sm:p-6 border-t border-cardBorder bg-surface/50 flex items-center justify-between no-print gap-2">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl border border-cardBorder text-textMuted hover:text-text hover:bg-slate-800 text-xs font-semibold transition"
+            className="px-4 py-2 rounded-xl border border-cardBorder bg-surface hover:bg-surfaceMuted text-text text-xs font-semibold transition cursor-pointer shadow-sm active:scale-95"
           >
             Cancel
           </button>
@@ -492,7 +594,7 @@ export function DataEntryEditModal({
               type="button"
               disabled={saving}
               onClick={() => handleSave(true)}
-              className="px-3 sm:px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-cardBorder text-text text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
+              className="px-3 sm:px-4 py-2 rounded-xl bg-surface hover:bg-surfaceMuted border border-cardBorder text-text text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer shadow-sm active:scale-95"
             >
               <Printer className="w-3.5 h-3.5 text-textMuted" />
               <span>Print</span>
@@ -502,9 +604,9 @@ export function DataEntryEditModal({
               type="button"
               disabled={saving}
               onClick={() => handleSave(false)}
-              className="px-4 sm:px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-400/50 hover:ring-emerald-300 flex items-center gap-1.5 transition disabled:opacity-50 cursor-pointer active:scale-95"
+              className="px-4 sm:px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/25 ring-2 ring-emerald-500/30 hover:ring-emerald-400 flex items-center gap-1.5 transition disabled:opacity-50 cursor-pointer active:scale-95"
             >
-              <Save className="w-3.5 h-3.5 text-slate-950 stroke-[2.5]" />
+              <Save className="w-3.5 h-3.5 text-white stroke-[2.5]" />
               <span>{saving ? 'Saving...' : 'Save Record'}</span>
             </button>
           </div>

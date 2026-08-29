@@ -159,6 +159,17 @@ export interface BankDetails {
   branch: string;
 }
 
+export interface ShortcutAction {
+  id: string;
+  name: string;
+  description: string;
+  defaultKey: string;
+  key: string;
+  category?: 'recording' | 'entries' | 'template' | 'general';
+}
+
+export type KeyboardShortcutsConfig = Record<string, string>;
+
 export interface UserSettings {
   currency: string;
   currencySymbol: string;
@@ -170,6 +181,7 @@ export interface UserSettings {
   invoiceFormat?: InvoiceFormatType;
   bankDetails?: BankDetails;
   customGroqApiKey?: string;
+  keyboardShortcuts?: KeyboardShortcutsConfig;
 }
 
 export interface FinancialQueryResult {
@@ -210,6 +222,22 @@ export interface TemplateField {
   placeholder?: string;
 }
 
+export interface AutoFillMappingEntry {
+  baseValue: string;
+  values: Record<string, string | number>;
+}
+
+export interface TemplateAutoFillConfig {
+  enabled: boolean;
+  baseFieldKey: string;
+  targetFieldKeys: string[];
+  sourceType: 'csv' | 'manual';
+  rawCsvText?: string;
+  mappings: Record<string, Record<string, any>>; // normalized baseValue (lower/trimmed) -> { targetKey: value }
+  manualEntries?: AutoFillMappingEntry[];
+  strictValidation?: boolean;
+}
+
 export interface DataTemplate {
   id: string;
   name: string;
@@ -219,6 +247,7 @@ export interface DataTemplate {
   hasTable: boolean;
   tableTitle?: string;
   tableFields: TemplateField[];
+  autoFill?: TemplateAutoFillConfig;
   createdAt: string;
   updatedAt: string;
 }
@@ -265,6 +294,9 @@ export interface ExtractedDataResult {
   tableHeaders?: string[];
   tableRows: Array<Record<string, any>> | Array<any[]>;
   raw_transcript?: string;
+  lookupStatus?: 'valid' | 'invalid' | 'none';
+  invalidLookup?: boolean;
+  invalidLookupMessage?: string;
 }
 
 export interface FlexibleExtractedResult {
@@ -290,5 +322,8 @@ export interface SessionDataEntry {
   rawTranscript?: string | null;
   audioUrl?: string | null;
   createdAt: string;
+  lookupStatus?: 'valid' | 'invalid' | 'none';
+  invalidLookup?: boolean;
+  invalidLookupMessage?: string;
 }
 
