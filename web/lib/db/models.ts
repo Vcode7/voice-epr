@@ -7,8 +7,37 @@ import {
   DataTemplate,
   DataEntryRecord,
   UserSettings,
+  DoctorPrescription,
+  SapIntegrationConfig,
+  SapFieldMapping,
+  SapUploadLog,
 } from '../../types';
-import { DEFAULT_SETTINGS, DEFAULT_MONITORING_DETAILS_TEMPLATE, NEW_DEFAULT_TEMPLATE, INDEPTH_TEMPLATE } from '../constants';
+import {
+  DEFAULT_SETTINGS,
+  DEFAULT_MONITORING_DETAILS_TEMPLATE,
+  NEW_DEFAULT_TEMPLATE,
+  INDEPTH_TEMPLATE,
+  DOCTOR_PRESCRIPTION_TEMPLATE,
+} from '../constants';
+
+export const DEFAULT_SAP_CONFIG: SapIntegrationConfig = {
+  id: 'sap_config_default',
+  name: 'SAP S/4HANA OData Service',
+  serviceUrl: 'https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata/sap/API_PURCHASEORDER_PROCESS_SRV',
+  clientNumber: '100',
+  auth: {
+    authType: 'basic',
+    username: 'SAP_API_USER',
+    password: '',
+    hasPassword: true,
+  },
+  csrfEnabled: true,
+  timeoutMs: 30000,
+  isActive: true,
+  useMockFallback: true,
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+};
 
 // In-Memory fallback store if MongoDB URI is not configured or in offline mode
 const memoryStore = {
@@ -16,9 +45,13 @@ const memoryStore = {
   receipts: [] as Receipt[],
   budgets: [] as Budget[],
   debts: [] as Debt[],
-  templates: [DEFAULT_MONITORING_DETAILS_TEMPLATE] as DataTemplate[],
+  templates: [DEFAULT_MONITORING_DETAILS_TEMPLATE, DOCTOR_PRESCRIPTION_TEMPLATE] as DataTemplate[],
   dataEntries: [] as DataEntryRecord[],
+  prescriptions: [] as DoctorPrescription[],
   settings: { ...DEFAULT_SETTINGS } as UserSettings,
+  sapConfig: { ...DEFAULT_SAP_CONFIG } as SapIntegrationConfig,
+  sapMappings: [] as SapFieldMapping[],
+  sapLogs: [] as SapUploadLog[],
 };
 
 // ----------------------------------------------------
@@ -459,16 +492,26 @@ export const dbTemplates = {
 
     const docs = await db.collection<DataTemplate>('templates').find({}).toArray();
     if (docs.length === 0) {
-      // Seed default and indepth templates
-      await db.collection('templates').insertMany([NEW_DEFAULT_TEMPLATE, INDEPTH_TEMPLATE] as any);
-      return [NEW_DEFAULT_TEMPLATE, INDEPTH_TEMPLATE];
+      // Seed default, indepth, and doctor prescription templates
+      await db.collection('templates').insertMany([NEW_DEFAULT_TEMPLATE, INDEPTH_TEMPLATE, DOCTOR_PRESCRIPTION_TEMPLATE] as any);
+      return [NEW_DEFAULT_TEMPLATE, INDEPTH_TEMPLATE, DOCTOR_PRESCRIPTION_TEMPLATE];
     }
 
-    // Auto-migrate: ensure NEW_DEFAULT_TEMPLATE and INDEPTH_TEMPLATE exist in database and have updated options
+    // Auto-migrate: ensure NEW_DEFAULT_TEMPLATE, INDEPTH_TEMPLATE, and DOCTOR_PRESCRIPTION_TEMPLATE exist in database
     const defaultDoc = docs.find((d) => d.id === NEW_DEFAULT_TEMPLATE.id);
     const indepthDoc = docs.find((d) => d.id === INDEPTH_TEMPLATE.id || d.name === 'Indepth Template');
+    const doctorDoc = docs.find((d) => d.id === DOCTOR_PRESCRIPTION_TEMPLATE.id || d.name === 'Doctor Prescription');
 
     let needsRefresh = false;
+
+    if (!doctorDoc) {
+      await db.collection('templates').updateOne(
+        { id: DOCTOR_PRESCRIPTION_TEMPLATE.id },
+        { $set: DOCTOR_PRESCRIPTION_TEMPLATE },
+        { upsert: true }
+      );
+      needsRefresh = true;
+    }
 
     if (!defaultDoc) {
       await db.collection('templates').updateOne(
@@ -727,3 +770,386 @@ export const dbSettings = {
     return updated;
   },
 };
+
+// ----------------------------------------------------
+// 8. Prescriptions Collection (Doctor Prescriptions)
+// ----------------------------------------------------
+export const dbPrescriptions = {
+  async getAll(): Promise<DoctorPrescription[]> {
+    const db = await getDb();
+    if (!db) {
+      return [...memoryStore.prescriptions].sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1));
+    }
+    const docs = await db
+      .collection<DoctorPrescription>('prescriptions')
+      .find({})
+      .sort({ createdAt: -1 })
+      .toArray();
+    return docs.map(({ _id, ...rest }: any) => rest as DoctorPrescription);
+  },
+
+  async getById(id: string): Promise<DoctorPrescription | null> {
+    const db = await getDb();
+    if (!db) {
+      return memoryStore.prescriptions.find((p) => p.id === id) || null;
+    }
+    const doc = await db.collection<DoctorPrescription>('prescriptions').findOne({ id });
+    if (!doc) return null;
+    const { _id, ...rest } = doc as any;
+    return rest as DoctorPrescription;
+  },
+
+  async getNextPrescriptionNumber(): Promise<string> {
+    const db = await getDb();
+    const prefix = 'RX-';
+    const year = new Date().getFullYear();
+
+    if (!db) {
+      const count = memoryStore.prescriptions.length + 1;
+      return `${prefix}${year}-${1000 + count}`;
+    }
+
+    const count = await db.collection('prescriptions').countDocuments();
+    return `${prefix}${year}-${1001 + count}`;
+  },
+
+  async create(data: Omit<DoctorPrescription, 'id' | 'createdAt' | 'updatedAt'> & { id?: string; createdAt?: string }): Promise<DoctorPrescription> {
+    const prescriptionNumber = data.prescriptionNumber || (await this.getNextPrescriptionNumber());
+    const prescription: DoctorPrescription = {
+      id: data.id || `rx_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      prescriptionNumber,
+      patientName: data.patientName || 'Anonymous Patient',
+      age: data.age || '',
+      gender: data.gender || '',
+      phone: data.phone || '',
+      email: data.email || '',
+      date: data.date || new Date().toISOString().split('T')[0],
+      doctorName: data.doctorName || 'Dr. Physician',
+      doctorSpecialty: data.doctorSpecialty || '',
+      doctorRegNo: data.doctorRegNo || '',
+      clinicDetails: data.clinicDetails || '',
+      clinicAddress: data.clinicAddress || '',
+      clinicPhone: data.clinicPhone || '',
+      diagnosis: data.diagnosis || '',
+      notes: data.notes || '',
+      medicines: data.medicines || [],
+      rawTranscript: data.rawTranscript || null,
+      createdAt: data.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const db = await getDb();
+    if (!db) {
+      memoryStore.prescriptions.unshift(prescription);
+      return prescription;
+    }
+
+    await db.collection('prescriptions').updateOne(
+      { id: prescription.id },
+      { $set: prescription },
+      { upsert: true }
+    );
+    return prescription;
+  },
+
+  async update(id: string, updates: Partial<DoctorPrescription>): Promise<DoctorPrescription | null> {
+    const db = await getDb();
+    const payload = { ...updates, updatedAt: new Date().toISOString() };
+
+    if (!db) {
+      const idx = memoryStore.prescriptions.findIndex((p) => p.id === id);
+      if (idx === -1) return null;
+      memoryStore.prescriptions[idx] = { ...memoryStore.prescriptions[idx], ...payload };
+      return memoryStore.prescriptions[idx];
+    }
+
+    await db.collection('prescriptions').updateOne({ id }, { $set: payload });
+    return this.getById(id);
+  },
+
+  async delete(id: string): Promise<boolean> {
+    const db = await getDb();
+    if (!db) {
+      const idx = memoryStore.prescriptions.findIndex((p) => p.id === id);
+      if (idx === -1) return false;
+      memoryStore.prescriptions.splice(idx, 1);
+      return true;
+    }
+    const res = await db.collection('prescriptions').deleteOne({ id });
+    return res.deletedCount > 0;
+  },
+
+  async clear(): Promise<void> {
+    const db = await getDb();
+    if (!db) {
+      memoryStore.prescriptions = [];
+      return;
+    }
+    await db.collection('prescriptions').deleteMany({});
+  },
+};
+
+// ----------------------------------------------------
+// 9. SAP Integration Configuration Collection
+// ----------------------------------------------------
+export const dbSapConfig = {
+  async get(): Promise<SapIntegrationConfig> {
+    const db = await getDb();
+    if (!db) return { ...memoryStore.sapConfig };
+
+    const doc = await db.collection('sap_config').findOne({ _key: 'sap_active_config' });
+    if (!doc) {
+      await db.collection('sap_config').insertOne({ _key: 'sap_active_config', ...DEFAULT_SAP_CONFIG } as any);
+      return { ...DEFAULT_SAP_CONFIG };
+    }
+    const { _id, _key, ...rest } = doc as any;
+    return rest as SapIntegrationConfig;
+  },
+
+  async getPublic(): Promise<SapIntegrationConfig> {
+    const config = await this.get();
+    // Return sanitized config - never reveal raw secrets to frontend
+    return {
+      ...config,
+      auth: {
+        ...config.auth,
+        password: undefined,
+        hasPassword: !!(config.auth.password && config.auth.password.trim().length > 0),
+        clientSecret: undefined,
+        hasClientSecret: !!(config.auth.clientSecret && config.auth.clientSecret.trim().length > 0),
+        bearerToken: undefined,
+        hasBearerToken: !!(config.auth.bearerToken && config.auth.bearerToken.trim().length > 0),
+        apiKeyValue: undefined,
+        hasApiKey: !!(config.auth.apiKeyValue && config.auth.apiKeyValue.trim().length > 0),
+      },
+    };
+  },
+
+  async save(updates: Partial<SapIntegrationConfig>): Promise<SapIntegrationConfig> {
+    const current = await this.get();
+    
+    // Preserve existing server secrets if client submitted masked or empty password
+    const updatedAuth = { ...current.auth, ...(updates.auth || {}) };
+    if (!updates.auth?.password || updates.auth.password.includes('••') || updates.auth.password.trim() === '') {
+      updatedAuth.password = current.auth.password || '';
+    }
+    if (!updates.auth?.clientSecret || updates.auth.clientSecret.includes('••') || updates.auth.clientSecret.trim() === '') {
+      updatedAuth.clientSecret = current.auth.clientSecret || '';
+    }
+    if (!updates.auth?.bearerToken || updates.auth.bearerToken.includes('••') || updates.auth.bearerToken.trim() === '') {
+      updatedAuth.bearerToken = current.auth.bearerToken || '';
+    }
+    if (!updates.auth?.apiKeyValue || updates.auth.apiKeyValue.includes('••') || updates.auth.apiKeyValue.trim() === '') {
+      updatedAuth.apiKeyValue = current.auth.apiKeyValue || '';
+    }
+
+    const updated: SapIntegrationConfig = {
+      ...current,
+      ...updates,
+      auth: updatedAuth,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const db = await getDb();
+    if (!db) {
+      memoryStore.sapConfig = updated;
+      return updated;
+    }
+
+    await db.collection('sap_config').updateOne(
+      { _key: 'sap_active_config' },
+      { $set: updated },
+      { upsert: true }
+    );
+    return updated;
+  },
+};
+
+// ----------------------------------------------------
+// 10. SAP Field Mappings Collection
+// ----------------------------------------------------
+export const dbSapMappings = {
+  async getAll(): Promise<SapFieldMapping[]> {
+    const db = await getDb();
+    if (!db) return [...memoryStore.sapMappings];
+
+    const docs = await db.collection<SapFieldMapping>('sap_mappings').find({}).toArray();
+    return docs.map(({ _id, ...rest }: any) => rest as SapFieldMapping);
+  },
+
+  async getByTemplateAndEntity(templateId: string, entitySetName: string): Promise<SapFieldMapping | null> {
+    const db = await getDb();
+    if (!db) {
+      return (
+        memoryStore.sapMappings.find(
+          (m) => m.templateId === templateId && m.entitySetName.toLowerCase() === entitySetName.toLowerCase()
+        ) || null
+      );
+    }
+
+    const doc = await db.collection<SapFieldMapping>('sap_mappings').findOne({
+      templateId,
+      entitySetName: { $regex: new RegExp(`^${entitySetName}$`, 'i') },
+    });
+    if (!doc) return null;
+    const { _id, ...rest } = doc as any;
+    return rest as SapFieldMapping;
+  },
+
+  async getByTemplateId(templateId: string): Promise<SapFieldMapping | null> {
+    const db = await getDb();
+    if (!db) {
+      return memoryStore.sapMappings.find((m) => m.templateId === templateId) || null;
+    }
+
+    const doc = await db.collection<SapFieldMapping>('sap_mappings').findOne({ templateId });
+    if (!doc) return null;
+    const { _id, ...rest } = doc as any;
+    return rest as SapFieldMapping;
+  },
+
+  async save(mapping: SapFieldMapping): Promise<SapFieldMapping> {
+    const item: SapFieldMapping = {
+      ...mapping,
+      id: mapping.id || `map_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const db = await getDb();
+    if (!db) {
+      const idx = memoryStore.sapMappings.findIndex(
+        (m) => m.templateId === item.templateId && m.entitySetName === item.entitySetName
+      );
+      if (idx >= 0) memoryStore.sapMappings[idx] = item;
+      else memoryStore.sapMappings.push(item);
+      return item;
+    }
+
+    await db.collection('sap_mappings').updateOne(
+      { templateId: item.templateId, entitySetName: item.entitySetName },
+      { $set: item },
+      { upsert: true }
+    );
+    return item;
+  },
+
+  async delete(id: string): Promise<boolean> {
+    const db = await getDb();
+    if (!db) {
+      const idx = memoryStore.sapMappings.findIndex((m) => m.id === id);
+      if (idx === -1) return false;
+      memoryStore.sapMappings.splice(idx, 1);
+      return true;
+    }
+    const res = await db.collection('sap_mappings').deleteOne({ id });
+    return res.deletedCount > 0;
+  },
+};
+
+// ----------------------------------------------------
+// 11. SAP Upload History Logs Collection
+// ----------------------------------------------------
+export const dbSapLogs = {
+  async getAll(filters?: { templateId?: string; status?: string; recordId?: string }): Promise<SapUploadLog[]> {
+    const db = await getDb();
+    let logs: SapUploadLog[] = [];
+
+    if (!db) {
+      logs = [...memoryStore.sapLogs];
+    } else {
+      const query: any = {};
+      if (filters?.templateId && filters.templateId !== 'All') query.templateId = filters.templateId;
+      if (filters?.status && filters.status !== 'All') query.status = filters.status;
+      if (filters?.recordId) query.recordId = filters.recordId;
+
+      const docs = await db
+        .collection<SapUploadLog>('sap_upload_logs')
+        .find(query)
+        .sort({ uploadedAt: -1 })
+        .toArray();
+      logs = docs.map(({ _id, ...rest }: any) => rest as SapUploadLog);
+    }
+
+    if (!db) {
+      if (filters?.templateId && filters.templateId !== 'All') {
+        logs = logs.filter((l) => l.templateId === filters.templateId);
+      }
+      if (filters?.status && filters.status !== 'All') {
+        logs = logs.filter((l) => l.status === filters.status);
+      }
+      if (filters?.recordId) {
+        logs = logs.filter((l) => l.recordId === filters.recordId);
+      }
+      logs.sort((a, b) => (b.uploadedAt > a.uploadedAt ? 1 : -1));
+    }
+
+    return logs;
+  },
+
+  async getById(id: string): Promise<SapUploadLog | null> {
+    const db = await getDb();
+    if (!db) {
+      return memoryStore.sapLogs.find((l) => l.id === id) || null;
+    }
+    const doc = await db.collection<SapUploadLog>('sap_upload_logs').findOne({ id });
+    if (!doc) return null;
+    const { _id, ...rest } = doc as any;
+    return rest as SapUploadLog;
+  },
+
+  async getLatestByRecordId(recordId: string): Promise<SapUploadLog | null> {
+    const db = await getDb();
+    if (!db) {
+      const matches = memoryStore.sapLogs.filter((l) => l.recordId === recordId);
+      if (matches.length === 0) return null;
+      return matches.sort((a, b) => (b.uploadedAt > a.uploadedAt ? 1 : -1))[0];
+    }
+    const doc = await db
+      .collection<SapUploadLog>('sap_upload_logs')
+      .find({ recordId })
+      .sort({ uploadedAt: -1 })
+      .limit(1)
+      .toArray();
+    if (doc.length === 0) return null;
+    const { _id, ...rest } = doc[0] as any;
+    return rest as SapUploadLog;
+  },
+
+  async create(data: Omit<SapUploadLog, 'id' | 'uploadedAt'> & { id?: string; uploadedAt?: string }): Promise<SapUploadLog> {
+    const log: SapUploadLog = {
+      id: data.id || `saplog_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      recordId: data.recordId,
+      templateId: data.templateId,
+      templateName: data.templateName || 'Data Record',
+      sapConfigId: data.sapConfigId,
+      entitySetName: data.entitySetName,
+      status: data.status,
+      httpStatus: data.httpStatus,
+      payload: data.payload,
+      sapDocumentId: data.sapDocumentId || null,
+      responseBody: data.responseBody,
+      errorMessage: data.errorMessage || null,
+      uploadedAt: data.uploadedAt || new Date().toISOString(),
+      durationMs: data.durationMs || 0,
+    };
+
+    const db = await getDb();
+    if (!db) {
+      memoryStore.sapLogs.unshift(log);
+      return log;
+    }
+
+    await db.collection('sap_upload_logs').insertOne(log as any);
+    return log;
+  },
+
+  async clear(): Promise<void> {
+    const db = await getDb();
+    if (!db) {
+      memoryStore.sapLogs = [];
+      return;
+    }
+    await db.collection('sap_upload_logs').deleteMany({});
+  },
+};
+

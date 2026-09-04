@@ -23,6 +23,7 @@ import { UserSettings, InvoiceFormatType, BankDetails, ShortcutAction, KeyboardS
 import { CURRENCIES, DEFAULT_SETTINGS } from '@/lib/constants';
 import { InvoiceFormatPreviewModal } from '@/components/invoice/InvoiceFormatPreviewModal';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
+import { SapSettingsSection } from '@/components/sap/SapSettingsSection';
 import {
   loadShortcutsConfig,
   saveShortcutsToStorage,
@@ -710,6 +711,9 @@ export default function SettingsPage() {
           </button>
         </div>
       </form>
+
+      {/* SAP OData Integration Section */}
+      <SapSettingsSection />
 
       {/* Database Management & Portability */}
       <div className="p-4 sm:p-6 rounded-2xl bg-card border border-cardBorder shadow-md space-y-4 sm:space-y-6">

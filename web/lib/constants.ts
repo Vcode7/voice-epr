@@ -1,4 +1,4 @@
-import { UserSettings, DataTemplate } from '../types';
+import { UserSettings, DataTemplate, DoctorPrescription } from '../types';
 
 export const DEFAULT_CATEGORIES = [
   'Groceries',
@@ -136,9 +136,38 @@ export const NEW_DEFAULT_TEMPLATE: DataTemplate = {
   updatedAt: '2026-08-21T00:00:00.000Z',
 };
 
+// 3. Doctor Prescription Template
+export const DOCTOR_PRESCRIPTION_TEMPLATE: DataTemplate = {
+  id: 'template_doctor_prescription',
+  name: 'Doctor Prescription',
+  description: 'Clinical medical prescription template with patient information, doctor/clinic details, diagnosis, and dynamic medicine table.',
+  isDefault: false,
+  fields: [
+    { id: 'f_patient_name', name: 'Patient Name', extractionKey: 'patient_name', type: 'text', placeholder: 'e.g. John Doe' },
+    { id: 'f_age', name: 'Age', extractionKey: 'age', type: 'text', placeholder: 'e.g. 34' },
+    { id: 'f_phone_number', name: 'Phone Number', extractionKey: 'phone_number', type: 'text', placeholder: 'e.g. +91 98765 43210' },
+    { id: 'f_email', name: 'Email Address', extractionKey: 'email', type: 'text', placeholder: 'e.g. john.doe@example.com' },
+    { id: 'f_date', name: 'Date', extractionKey: 'date', type: 'date', placeholder: 'DD-MM-YYYY' },
+    { id: 'f_doctor_name', name: 'Doctor Name', extractionKey: 'doctor_name', type: 'text', placeholder: 'e.g. Dr. Sarah Jenkins, MD' },
+    { id: 'f_clinic_details', name: 'Clinic/Hospital Details', extractionKey: 'clinic_details', type: 'text', placeholder: 'e.g. City Care Health Clinic, 45 Medical Enclave' },
+    { id: 'f_diagnosis', name: 'Diagnosis / Chief Complaint', extractionKey: 'diagnosis', type: 'text', placeholder: 'e.g. Acute Upper Respiratory Tract Infection' },
+  ],
+  hasTable: true,
+  tableTitle: 'Prescribed Medicines',
+  tableFields: [
+    { id: 'tf_medicine_name', name: 'Medicine Name', extractionKey: 'medicine_name', type: 'text', placeholder: 'e.g. Paracetamol 650mg' },
+    { id: 'tf_dosage', name: 'Dosage', extractionKey: 'dosage', type: 'text', placeholder: 'e.g. 1 Tablet / 500mg' },
+    { id: 'tf_timing', name: 'Timing (AF / BF)', extractionKey: 'timing', type: 'select', options: ['AF', 'BF'], placeholder: 'AF or BF' },
+    { id: 'tf_frequency', name: 'Frequency / Instructions', extractionKey: 'frequency', type: 'text', placeholder: 'e.g. 1-0-1 (Morning & Night)' },
+    { id: 'tf_duration', name: 'Duration', extractionKey: 'duration', type: 'text', placeholder: 'e.g. 5 days' },
+  ],
+  createdAt: '2026-08-25T00:00:00.000Z',
+  updatedAt: '2026-08-25T00:00:00.000Z',
+};
+
 // Aliases
 export const DEFAULT_MONITORING_DETAILS_TEMPLATE = NEW_DEFAULT_TEMPLATE;
-export const SYSTEM_DEFAULT_TEMPLATES = [NEW_DEFAULT_TEMPLATE, INDEPTH_TEMPLATE];
+export const SYSTEM_DEFAULT_TEMPLATES = [NEW_DEFAULT_TEMPLATE, INDEPTH_TEMPLATE, DOCTOR_PRESCRIPTION_TEMPLATE];
 
 export const DEFAULT_KEYBOARD_SHORTCUTS = [
   {

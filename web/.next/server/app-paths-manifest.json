@@ -1,8 +1,4 @@
 {
-  "/api/groq/transcribe/route": "app/api/groq/transcribe/route.js",
-  "/api/groq/custom-data/route": "app/api/groq/custom-data/route.js",
-  "/api/groq/voice-edit/route": "app/api/groq/voice-edit/route.js",
   "/page": "app/page.js",
-  "/voice-data/page": "app/voice-data/page.js",
   "/settings/page": "app/settings/page.js"
 }

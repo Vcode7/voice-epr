@@ -107,14 +107,14 @@ body {
   animation: shimmer 1.6s infinite;
 }
 
-/* Print Stylesheet for Invoices & Data Entry PDFs */
+/* Print Stylesheet for Invoices, Prescriptions & Data Entry PDFs */
 .print-only {
   display: none !important;
 }
 
 @media print {
   @page {
-    margin: 12mm;
+    margin: 8mm;
     size: auto;
   }
 
@@ -126,9 +126,11 @@ body {
     height: auto !important;
     min-height: auto !important;
     overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
-  /* Make whole body invisible by default so background page elements, dashboard metrics, invoice lists don't print */
+  /* Make whole body invisible by default so background page elements, sidebar, buttons don't print */
   body {
     visibility: hidden !important;
   }
@@ -145,16 +147,17 @@ body {
     visibility: hidden !important;
   }
 
-  /* Make ONLY the invoice document visible and positioned at top-left */
+  /* Make ONLY the print-only document visible and positioned at top-left */
   .print-only,
   .print-only *,
   .printable-area,
   .printable-area * {
     visibility: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
-  .print-only,
-  .printable-area {
+  .print-only {
     display: block !important;
     position: absolute !important;
     left: 0 !important;

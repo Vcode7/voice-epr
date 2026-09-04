@@ -1,3 +1,6 @@
+export * from './sap';
+import { SapUploadStatus } from './sap';
+
 export type FinancialIntent =
   | 'expense'
   | 'income'
@@ -281,6 +284,11 @@ export interface DataEntryRecord {
   date: string;
   createdAt: string;
   updatedAt: string;
+  // SAP Upload Tracking
+  sapUploadStatus?: SapUploadStatus;
+  sapDocumentNumber?: string | null;
+  sapLastUpload?: string | null;
+  sapErrorMessage?: string | null;
 }
 
 export interface ExtractedDataResult {
@@ -325,5 +333,61 @@ export interface SessionDataEntry {
   lookupStatus?: 'valid' | 'invalid' | 'none';
   invalidLookup?: boolean;
   invalidLookupMessage?: string;
+}
+
+export interface PrescriptionMedicine {
+  id: string;
+  name: string;
+  dosage: string;
+  timing: 'AF' | 'BF' | 'AF / BF' | string;
+  frequency: string;
+  duration: string;
+  instructions?: string;
+}
+
+export interface DoctorPrescription {
+  id: string;
+  prescriptionNumber: string;
+  patientName: string;
+  age: string | number;
+  gender?: string;
+  phone: string;
+  email: string;
+  date: string;
+  doctorName: string;
+  doctorSpecialty?: string;
+  doctorRegNo?: string;
+  clinicDetails: string;
+  clinicAddress?: string;
+  clinicPhone?: string;
+  diagnosis?: string;
+  notes?: string;
+  medicines: PrescriptionMedicine[];
+  rawTranscript?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ExtractedPrescriptionResult {
+  patient_name?: string | null;
+  age?: string | number | null;
+  gender?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  date?: string | null;
+  doctor_name?: string | null;
+  doctor_specialty?: string | null;
+  clinic_details?: string | null;
+  diagnosis?: string | null;
+  notes?: string | null;
+  medicines?: Array<{
+    name: string;
+    dosage?: string | null;
+    timing?: string | null;
+    frequency?: string | null;
+    duration?: string | null;
+    instructions?: string | null;
+  }>;
+  raw_transcript?: string;
 }
 

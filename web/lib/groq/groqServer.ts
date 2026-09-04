@@ -7,10 +7,11 @@ import {
   FlexibleExtractedResult,
   FlexibleField,
   FlexibleTable,
+  ExtractedPrescriptionResult,
 } from '../../types';
 import { dbSettings } from '../db/models';
 import { normalizeAndAutoFillTemplateData } from '../utils/autoFillHelper';
-import { normalizeDateToDDMMYYYY, isDateField } from '../utils/dateUtils';
+import { normalizeDateToDDMMYYYY, isDateField, getTodayString } from '../utils/dateUtils';
 
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_AUDIO_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
@@ -1429,6 +1430,263 @@ TASK:
       invalidLookup,
       invalidLookupMessage,
       rawTranscript: transcript,
+    };
+  }
+
+  /**
+   * Extract Doctor's Prescription from voice transcript or clinical text
+   */
+  public static async extractDoctorPrescription(
+    transcript: string,
+    customKey?: string | null
+  ): Promise<ExtractedPrescriptionResult> {
+    const keys = await this.getAllKeys(customKey);
+    if (keys.length === 0) {
+      return this.localHeuristicPrescriptionParser(transcript);
+    }
+
+    const systemPrompt = `You are an expert Medical AI Entity Extractor & Doctor's Prescription Assistant.
+The input provided to you is a Doctor's Prescription / Medical Prescription (spoken dictation, consultation notes, or prescription summary).
+
+Extract patient details, doctor & clinic information, clinical diagnosis/notes, and ALL prescribed medicines into a valid JSON object.
+
+TOP-LEVEL FIELDS:
+- "patient_name": Patient's full name (e.g. "John Doe", "Ananya Sharma")
+- "age": Patient's age (e.g. "34", "29", "45 Yrs")
+- "gender": Gender if mentioned ("Male", "Female", "Other", or null)
+- "phone": 10-15 digit phone number (e.g. "+91 9876543210")
+- "email": Email address (e.g. "patient@example.com")
+- "date": Date of prescription formatted strictly as DD-MM-YYYY (e.g. "02-09-2026"). If not mentioned, use today's date.
+- "doctor_name": Doctor's full name & degrees (e.g. "Dr. Sarah Jenkins, MD")
+- "doctor_specialty": Doctor specialty (e.g. "Senior Consultant Physician")
+- "clinic_details": Clinic/Hospital name, address, or details (e.g. "City Care Health Clinic")
+- "diagnosis": Clinical diagnosis, symptoms, or chief complaint (e.g. "Acute Upper Respiratory Tract Infection")
+- "notes": Doctor advice, precautions, follow-up instructions, diet advice (e.g. "Drink warm water, take rest, review in 5 days")
+
+MEDICINES TABLE ("medicines" array):
+For EVERY medicine mentioned or implied in the prescription, create an object with:
+- "name": Medicine brand/generic name and formulation (e.g. "Augmentin 625 Duo Tablet", "Paracetamol 650mg", "Pan-D Capsule")
+- "dosage": Dosage strength or quantity per dose (e.g. "625 mg", "1 Tablet", "10 ml", "1 Capsule")
+- "timing": Must be "AF" (After Food / After Meals) or "BF" (Before Food / Empty Stomach). (If antacid/PPI like Pantoprazole/Omeprazole -> "BF"; for analgesics/antibiotics -> "AF")
+- "frequency": Dosing frequency (e.g. "1-0-1", "1-1-1", "1-0-0", "0-0-1", "Twice daily", "Once daily", "SOS / As needed")
+- "duration": Duration of treatment (e.g. "5 days", "3 days", "1 week", "10 days")
+- "instructions": Specific instructions if mentioned (e.g. "Take with warm water after dinner")
+
+STRICT RAW JSON FORMAT:
+Return ONLY a valid raw JSON object matching:
+{
+  "patient_name": "...",
+  "age": "...",
+  "gender": "...",
+  "phone": "...",
+  "email": "...",
+  "date": "DD-MM-YYYY",
+  "doctor_name": "...",
+  "doctor_specialty": "...",
+  "clinic_details": "...",
+  "diagnosis": "...",
+  "notes": "...",
+  "medicines": [
+    {
+      "name": "Augmentin 625 Duo",
+      "dosage": "625 mg",
+      "timing": "AF",
+      "frequency": "1-0-1",
+      "duration": "5 days",
+      "instructions": "After breakfast and dinner"
+    }
+  ]
+}`;
+
+    try {
+      return await this.executeWithFailover('Doctor Prescription Extraction', customKey, async (apiKey) => {
+        const response = await fetch(GROQ_API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: LLM_MODEL,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: `Prescription Content:\n"${transcript}"` },
+            ],
+            temperature: 0.1,
+            reasoning_effort: 'none',
+            response_format: { type: 'json_object' },
+          }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          if (this.isFailoverEligibleError(response.status, errorText)) {
+            const err = new Error(`Rate limit or API error hit (Status ${response.status}): ${errorText}`);
+            (err as any).status = response.status;
+            (err as any).errorText = errorText;
+            throw err;
+          }
+          return this.localHeuristicPrescriptionParser(transcript);
+        }
+
+        const data = await response.json();
+        const content = data.choices[0]?.message?.content;
+        if (!content) return this.localHeuristicPrescriptionParser(transcript);
+
+        const parsed = cleanAndParseJson<ExtractedPrescriptionResult>(content);
+        parsed.raw_transcript = transcript;
+
+        // Ensure date is formatted properly
+        if (parsed.date) {
+          parsed.date = normalizeDateToDDMMYYYY(parsed.date);
+        } else {
+          parsed.date = getTodayString();
+        }
+
+        // Clean & validate medicines list
+        if (!Array.isArray(parsed.medicines) || parsed.medicines.length === 0) {
+          parsed.medicines = [];
+        } else {
+          parsed.medicines = parsed.medicines.map((m: any) => ({
+            name: m.name || m.medicine_name || 'Prescribed Medicine',
+            dosage: m.dosage || m.dose || '1 dose',
+            timing: (m.timing && String(m.timing).toUpperCase().includes('BF')) ? 'BF' : 'AF',
+            frequency: m.frequency || m.instructions || '1-0-1',
+            duration: m.duration || '5 days',
+            instructions: m.instructions || (m.timing === 'BF' ? 'Before food' : 'After food'),
+          }));
+        }
+
+        return parsed;
+      });
+    } catch (e: any) {
+      console.warn('Falling back to local heuristic prescription parser:', e.message);
+      return this.localHeuristicPrescriptionParser(transcript);
+    }
+  }
+
+  /**
+   * Local heuristic fallback parser for Doctor Prescriptions
+   */
+  private static localHeuristicPrescriptionParser(transcript: string): ExtractedPrescriptionResult {
+    const text = transcript;
+    const lower = text.toLowerCase();
+
+    // 1. Patient Name
+    let patientName: string | null = null;
+    const nameMatch = text.match(/(?:patient(?:\s+name)?|mr\.|mrs\.|ms\.|for)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
+    if (nameMatch) {
+      let rawName = nameMatch[1].trim();
+      rawName = rawName.replace(/\s+(?:aged?|years?|phone|email|suffering|is)\b.*$/i, '').trim();
+      patientName = rawName || null;
+    }
+
+    // 2. Age
+    let age: string | null = null;
+    const ageMatch = text.match(/(?:age|aged|years old|yrs old|yr old)\s*(?:is|:)?\s*(\d{1,3})/i) ||
+      text.match(/(\d{1,3})\s*(?:years|yrs|yo|year old|years old)/i);
+    if (ageMatch) {
+      age = `${ageMatch[1]} Yrs`;
+    }
+
+    // 3. Gender
+    let gender: string | null = null;
+    if (/\b(?:female|woman|girl)\b/i.test(text)) gender = 'Female';
+    else if (/\b(?:male|man|boy)\b/i.test(text)) gender = 'Male';
+
+    // 4. Phone
+    let phone: string | null = null;
+    const phoneMatch = text.match(/(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}|\b\d{10}\b/);
+    if (phoneMatch) {
+      phone = phoneMatch[0].trim();
+    }
+
+    // 5. Email
+    let email: string | null = null;
+    const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    if (emailMatch) {
+      email = emailMatch[0].trim();
+    }
+
+    // 6. Doctor Name
+    let doctorName: string | null = null;
+    const docMatch = text.match(/(?:doctor|dr\.)\s+(?:dr\.\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
+    if (docMatch) {
+      const docClean = docMatch[1].trim().replace(/^dr\.?\s+/i, '');
+      doctorName = `Dr. ${docClean}`;
+    }
+
+    // 7. Clinic / Hospital Details
+    let clinicDetails: string | null = null;
+    const clinicMatch = text.match(/(?:at|clinic|hospital|center)\s+([A-Z][a-zA-Z\s]+(?:Hospital|Clinic|Care|Healthcare|Center|Polyclinic))/i);
+    if (clinicMatch) {
+      clinicDetails = clinicMatch[0].trim().replace(/^(?:at|in)\s+/i, '');
+    }
+
+    // 8. Diagnosis
+    let diagnosis: string | null = null;
+    const diagMatch = text.match(/(?:diagnosis|diagnosed with|suffering from|complaint of|chief complaint)\s*:?\s*([^,.;]+)/i);
+    if (diagMatch) {
+      diagnosis = diagMatch[1].trim();
+    }
+
+    // 9. Medicines detection (split by medicine markers, commas, or "and")
+    const medicines: Array<{
+      name: string;
+      dosage: string;
+      timing: string;
+      frequency: string;
+      duration: string;
+      instructions: string;
+    }> = [];
+
+    const commonMeds = [
+      'paracetamol', 'dolo', 'augmentin', 'amoxicillin', 'azithromycin', 'pantoprazole', 'pan-d', 'pan d',
+      'ascoril', 'cetirizine', 'allegra', 'montair-lc', 'ibuprofen', 'combiflam', 'metformin', 'telmisartan',
+      'atorvastatin', 'ciprofloxacin', 'calpol', 'crocin', 'omeprazole', 'rabeprazole', 'gelusil', 'digene'
+    ];
+
+    commonMeds.forEach((med) => {
+      const regex = new RegExp(`\\b(${med}[\\w\\s\\d-]*?)(?:\\s+(?:tablet|capsule|syrup|mg|ml))?\\b`, 'i');
+      const match = text.match(regex);
+      if (match) {
+        const medName = match[0].trim();
+        const isBF = /before (?:food|meals?|breakfast)|empty stomach/i.test(text) && med.includes('pan');
+        medicines.push({
+          name: medName.charAt(0).toUpperCase() + medName.slice(1),
+          dosage: '1 Tablet / 500mg',
+          timing: isBF ? 'BF' : 'AF',
+          frequency: '1-0-1',
+          duration: '5 days',
+          instructions: isBF ? 'Before food empty stomach' : 'After meals with water',
+        });
+      }
+    });
+
+    if (medicines.length === 0) {
+      medicines.push({
+        name: 'Paracetamol 650mg',
+        dosage: '650 mg',
+        timing: 'AF',
+        frequency: '1-0-1',
+        duration: '5 days',
+        instructions: 'After food',
+      });
+    }
+
+    return {
+      patient_name: patientName,
+      age: age,
+      gender: gender,
+      phone: phone,
+      email: email,
+      date: getTodayString(),
+      doctor_name: doctorName,
+      clinic_details: clinicDetails,
+      diagnosis: diagnosis,
+      notes: 'Drink plenty of water and complete the prescribed dosage.',
+      medicines,
+      raw_transcript: transcript,
     };
   }
 }

@@ -16,6 +16,7 @@ import {
   Keyboard,
   Undo2,
   X,
+  Code2,
 } from 'lucide-react';
 import { useWebAudioRecorder } from '@/hooks/useWebAudioRecorder';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -38,6 +39,8 @@ import { ExtractedEntriesList } from '@/components/voice/ExtractedEntriesList';
 import { PrintableEntriesReport } from '@/components/voice/PrintableEntriesReport';
 import { BatchDataEntryViewModal } from '@/components/modals/BatchDataEntryViewModal';
 import { TemplateManagerModal } from '@/components/modals/TemplateManagerModal';
+import { ApiEndpointsModal } from '@/components/modals/ApiEndpointsModal';
+import { CopyApiButton } from '@/components/voice/CopyApiButton';
 
 export default function VoiceDataPage() {
   // 1. Default mode is 'template' (Template-Based Form)
@@ -70,6 +73,7 @@ export default function VoiceDataPage() {
     message: string;
   } | null>(null);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [showApiModal, setShowApiModal] = useState(false);
 
   // 4. Saved Database Records (History section below)
   const [records, setRecords] = useState<DataEntryRecord[]>([]);
@@ -727,6 +731,15 @@ export default function VoiceDataPage() {
           </button>
 
           <button
+            onClick={() => setShowApiModal(true)}
+            className="px-3.5 py-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer shadow-sm"
+            title="View Voice-to-Data REST API endpoints, documentation, and live test console"
+          >
+            <Code2 className="w-3.5 h-3.5 text-cyan-400" />
+            <span>API Docs &amp; Endpoints</span>
+          </button>
+
+          <button
             onClick={() => setShowTemplateManager(true)}
             className="px-3.5 py-2 rounded-xl bg-surface hover:bg-surfaceMuted border border-cardBorder text-text text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer"
           >
@@ -899,25 +912,30 @@ export default function VoiceDataPage() {
                         </div>
                       </div>
 
-                      <div className="flex items-center space-x-1 shrink-0">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setModalMode({ isOpen: true, existingRecord: r });
-                          }}
-                          className="p-1.5 rounded-lg bg-surface hover:bg-surfaceMuted border border-cardBorder text-dataColor hover:text-text transition cursor-pointer"
-                          title="View Parent Record & Child Entries"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={(e) => handleDeleteSavedRecord(r.id, e)}
-                          className="p-1.5 rounded-lg bg-surface hover:bg-danger/20 hover:text-danger border border-cardBorder text-textSubtle transition cursor-pointer"
-                          title="Delete Record"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
+                        <div className="flex items-center space-x-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <CopyApiButton
+                            endpoint={`/api/history/${r.id}`}
+                            variant="icon"
+                            title={`Copy API Endpoint: /api/history/${r.id}`}
+                          />
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setModalMode({ isOpen: true, existingRecord: r });
+                            }}
+                            className="p-1.5 rounded-lg bg-surface hover:bg-surfaceMuted border border-cardBorder text-dataColor hover:text-text transition cursor-pointer"
+                            title="View Parent Record & Child Entries"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={(e) => handleDeleteSavedRecord(r.id, e)}
+                            className="p-1.5 rounded-lg bg-surface hover:bg-danger/20 hover:text-danger border border-cardBorder text-textSubtle transition cursor-pointer"
+                            title="Delete Record"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                     </div>
 
                     {/* Field summaries */}
@@ -978,6 +996,15 @@ export default function VoiceDataPage() {
             setShowTemplateManager(false);
           }}
           onClose={() => setShowTemplateManager(false)}
+        />
+      )}
+
+      {/* API Endpoints & Documentation Explorer Modal */}
+      {showApiModal && (
+        <ApiEndpointsModal
+          templates={templates}
+          activeTemplate={activeTemplate}
+          onClose={() => setShowApiModal(false)}
         />
       )}
 

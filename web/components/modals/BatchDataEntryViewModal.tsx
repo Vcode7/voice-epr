@@ -20,6 +20,7 @@ import { formatDateDisplay } from '@/lib/utils/dateUtils';
 import { exportEntriesToExcel } from '@/lib/utils/excelExporter';
 import { PrintableEntriesReport } from '@/components/voice/PrintableEntriesReport';
 import { VoiceAudioPlayer } from '@/components/voice/VoiceAudioPlayer';
+import { CopyApiButton } from '@/components/voice/CopyApiButton';
 
 interface BatchDataEntryViewModalProps {
   record: DataEntryRecord;
@@ -177,6 +178,14 @@ export function BatchDataEntryViewModal({
                 <span>Export All Excel</span>
               </button>
 
+              {/* Copy Parent Record API Endpoint */}
+              <CopyApiButton
+                endpoint={`/api/history/${record.id}`}
+                label="Copy API Endpoint"
+                size="sm"
+                title={`Copy Parent Record API Endpoint: /api/history/${record.id}`}
+              />
+
               {/* Delete Record */}
               <button
                 onClick={handleDeleteParent}
@@ -266,6 +275,14 @@ export function BatchDataEntryViewModal({
                       <FileSpreadsheet className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                       <span className="text-[10px]">Excel</span>
                     </button>
+
+                    {/* Copy single entry API endpoint */}
+                    <CopyApiButton
+                      endpoint={`/api/history/${entry.id || record.id}`}
+                      label="API JSON"
+                      variant="button"
+                      title={`Copy API Endpoint: /api/history/${entry.id || record.id}`}
+                    />
                   </div>
                 </div>
 

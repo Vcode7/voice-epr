@@ -6,21 +6,25 @@ import { usePathname } from 'next/navigation';
 import {
   Mic,
   FileSpreadsheet,
+  Stethoscope,
   History,
   Receipt,
   PieChart,
   Layers,
   Settings,
+  UploadCloud,
 } from 'lucide-react';
 import { ThemeToggle } from './theme/ThemeToggle';
 
 const NAV_ITEMS = [
   { name: 'Voice Studio', href: '/', icon: Mic },
+  { name: 'Doctor Prescription', href: '/prescriptions', icon: Stethoscope },
   { name: 'Voice to Data', href: '/voice-data', icon: FileSpreadsheet },
   { name: 'History & Logs', href: '/history', icon: History },
   { name: 'Voice Invoices', href: '/invoices', icon: Receipt },
   { name: 'Analytics & Budgets', href: '/analytics', icon: PieChart },
   { name: 'Templates', href: '/templates', icon: Layers },
+  { name: 'SAP Upload', href: '/sap-upload', icon: UploadCloud },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 

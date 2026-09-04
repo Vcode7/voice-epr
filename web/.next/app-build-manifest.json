@@ -11,15 +11,15 @@
       "static/chunks/main-app.js",
       "static/chunks/app/page.js"
     ],
-    "/api/groq/status/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/groq/status/route.js"
-    ],
     "/api/transactions/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/transactions/route.js"
+    ],
+    "/api/groq/status/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/groq/status/route.js"
     ],
     "/api/data-entries/route": [
       "static/chunks/webpack.js",
@@ -31,35 +31,30 @@
       "static/chunks/main-app.js",
       "static/chunks/app/api/templates/route.js"
     ],
-    "/voice-data/page": [
+    "/settings/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/voice-data/page.js"
+      "static/chunks/app/settings/page.js"
+    ],
+    "/api/sap/config/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/sap/config/route.js"
     ],
     "/api/settings/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/settings/route.js"
     ],
-    "/settings/page": [
+    "/api/sap/test-metadata/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/settings/page.js"
+      "static/chunks/app/api/sap/test-metadata/route.js"
     ],
-    "/api/groq/transcribe/route": [
+    "/api/sap/mappings/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/groq/transcribe/route.js"
-    ],
-    "/api/groq/custom-data/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/groq/custom-data/route.js"
-    ],
-    "/api/groq/voice-edit/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/groq/voice-edit/route.js"
+      "static/chunks/app/api/sap/mappings/route.js"
     ]
   }
 }

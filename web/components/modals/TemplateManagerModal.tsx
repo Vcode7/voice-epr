@@ -5,6 +5,7 @@ import { X, Plus, Layers, Copy, Trash2, CheckCircle2, RotateCcw, Sparkles } from
 import { DataTemplate } from '@/types';
 import { DEFAULT_MONITORING_DETAILS_TEMPLATE } from '@/lib/constants';
 import { TemplateEditModal } from './TemplateEditModal';
+import { CopyApiButton } from '@/components/voice/CopyApiButton';
 
 interface TemplateManagerModalProps {
   activeTemplateId: string;
@@ -166,10 +167,20 @@ export function TemplateManagerModal({
                               </span>
                             </>
                           )}
+                          <span>•</span>
+                          <span className="font-mono text-[10px] text-cyan-400">
+                            /api/data/{tmpl.name.toLowerCase().replace(/\s+/g, '-')}
+                          </span>
                         </div>
                       </div>
 
                       <div className="flex items-center space-x-1.5 self-end sm:self-center">
+                        <CopyApiButton
+                          endpoint={`/api/data/${tmpl.name.toLowerCase().replace(/\s+/g, '-')}`}
+                          label="Copy API"
+                          variant="button"
+                          title={`Copy Template Data API Endpoint: /api/data/${tmpl.name.toLowerCase().replace(/\s+/g, '-')}`}
+                        />
                         {!isActive && (
                           <button
                             onClick={() => onSelectActive(tmpl)}

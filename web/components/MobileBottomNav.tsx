@@ -5,19 +5,22 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Mic,
+  Stethoscope,
   FileSpreadsheet,
   History,
   Receipt,
   PieChart,
   Settings,
+  UploadCloud,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
   { name: 'Studio', href: '/', icon: Mic },
+  { name: 'Prescription', href: '/prescriptions', icon: Stethoscope },
   { name: 'Data EPR', href: '/voice-data', icon: FileSpreadsheet },
   { name: 'History', href: '/history', icon: History },
   { name: 'Invoices', href: '/invoices', icon: Receipt },
-  { name: 'Analytics', href: '/analytics', icon: PieChart },
+  { name: 'SAP', href: '/sap-upload', icon: UploadCloud },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 

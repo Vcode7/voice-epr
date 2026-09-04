@@ -25,6 +25,7 @@ import {
 import { SessionDataEntry, DataTemplate, TemplateField } from '@/types';
 import { VoiceAudioPlayer } from '@/components/voice/VoiceAudioPlayer';
 import { normalizeDateToDDMMYYYY, isDateField } from '@/lib/utils/dateUtils';
+import { CopyApiButton } from '@/components/voice/CopyApiButton';
 
 interface ExtractedEntriesListProps {
   entries: SessionDataEntry[];
@@ -151,6 +152,15 @@ export function ExtractedEntriesList({
                 <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 <span>Export Excel</span>
               </button>
+
+              {/* Copy Template API */}
+              {activeTemplate && (
+                <CopyApiButton
+                  endpoint={`/api/data/${(activeTemplate.name || 'default').toLowerCase().replace(/\s+/g, '-')}`}
+                  label="API Endpoint"
+                  title={`Copy Template API Endpoint: /api/data/${(activeTemplate.name || 'default').toLowerCase().replace(/\s+/g, '-')}`}
+                />
+              )}
 
               {/* Clear All */}
               <button
