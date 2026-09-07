@@ -21,7 +21,7 @@ const NAV_ITEMS = [
   { name: 'Doctor Prescription', href: '/prescriptions', icon: Stethoscope },
   { name: 'Voice to Data', href: '/voice-data', icon: FileSpreadsheet },
   { name: 'History & Logs', href: '/history', icon: History },
-  { name: 'Voice Invoices', href: '/invoices', icon: Receipt },
+  { name: 'Voice Invoice', href: '/invoices', icon: Receipt },
   { name: 'Analytics & Budgets', href: '/analytics', icon: PieChart },
   { name: 'Templates', href: '/templates', icon: Layers },
   { name: 'SAP Upload', href: '/sap-upload', icon: UploadCloud },
@@ -33,9 +33,9 @@ export function Sidebar() {
 
   return (
     <aside className="hidden md:flex w-64 bg-card border-r border-cardBorder flex-col justify-between shrink-0 no-print h-screen sticky top-0 transition-colors duration-200">
-      <div>
+      <div className="flex flex-col h-full overflow-hidden">
         {/* Brand Header */}
-        <div className="p-6 border-b border-cardBorder">
+        <div className="p-6 border-b border-cardBorder shrink-0">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-primaryDark to-primary flex items-center justify-center shadow-lg shadow-primary/20">
               <Mic className="w-5 h-5 text-white" />
@@ -43,9 +43,6 @@ export function Sidebar() {
             <div>
               <h1 className="font-bold text-lg text-text tracking-tight flex items-center gap-1.5">
                 Voice EPR
-                <span className="text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded bg-primary/20 text-primary border border-primary/30">
-                  Web
-                </span>
               </h1>
               <p className="text-xs text-textMuted font-medium">Smart Voice Intelligence</p>
             </div>
@@ -53,7 +50,7 @@ export function Sidebar() {
         </div>
 
         {/* Nav Links */}
-        <nav className="p-4 space-y-1.5">
+        <nav className="p-4 space-y-1.5 overflow-y-auto flex-1 custom-scrollbar">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
@@ -62,13 +59,13 @@ export function Sidebar() {
               <Link
                 key={item.name}
                 href={item.href}
-                className={`flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                className={`flex items-center space-x-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
                   isActive
                     ? 'bg-primary text-white shadow-md shadow-primary/25 font-semibold'
                     : 'text-textMuted hover:bg-surface hover:text-text'
                 }`}
               >
-                <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-textSubtle'}`} />
+                <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-textSubtle'}`} />
                 <span>{item.name}</span>
               </Link>
             );
@@ -77,7 +74,7 @@ export function Sidebar() {
       </div>
 
       {/* Footer Theme & Status Box */}
-      <div className="p-4 border-t border-cardBorder">
+      <div className="p-4 border-t border-cardBorder shrink-0">
         <div className="flex items-center justify-between p-2.5 rounded-xl bg-surface/70 border border-cardBorder">
           <div className="flex flex-col">
             <span className="text-[11px] font-bold text-text">Appearance</span>

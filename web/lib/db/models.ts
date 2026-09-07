@@ -11,6 +11,14 @@ import {
   SapIntegrationConfig,
   SapFieldMapping,
   SapUploadLog,
+  Company,
+  Supplier,
+  Customer,
+  Item,
+  Voucher,
+  VoucherType,
+  AccountTransaction,
+  LedgerSummary,
 } from '../../types';
 import {
   DEFAULT_SETTINGS,
@@ -19,6 +27,181 @@ import {
   INDEPTH_TEMPLATE,
   DOCTOR_PRESCRIPTION_TEMPLATE,
 } from '../constants';
+
+export const DEFAULT_COMPANIES: Company[] = [
+  {
+    id: 'comp_default_1',
+    name: 'ABC Infotech Pvt Ltd',
+    gstin: '27AABCA1234F1Z5',
+    pan: 'AABCA1234F',
+    address: 'Plot 42, Tech Park, MIDC Andheri East',
+    city: 'Mumbai',
+    state: 'Maharashtra',
+    stateCode: '27',
+    pincode: '400093',
+    phone: '+91 98200 12345',
+    email: 'billing@abcinfotech.com',
+    bankDetails: {
+      accountName: 'ABC Infotech Pvt Ltd',
+      accountNumber: '91234567890123',
+      bankName: 'HDFC Bank Ltd',
+      ifsc: 'HDFC0001234',
+      branch: 'Andheri East, Mumbai',
+    },
+    termsAndConditions: '1. Payment due within 15 days from invoice date.\n2. Goods once sold will not be taken back.',
+    notes: 'Primary registered company for sales & GST invoicing.',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
+
+export const DEFAULT_SUPPLIERS: Supplier[] = [
+  {
+    id: 'supp_default_1',
+    name: 'Global Tech Supplies',
+    gstin: '27AABCG5678K1Z2',
+    pan: 'AABCG5678K',
+    address: '102 Industrial Estate, Goregaon West',
+    city: 'Mumbai',
+    state: 'Maharashtra',
+    stateCode: '27',
+    pincode: '400062',
+    phone: '+91 98111 22334',
+    email: 'orders@globaltech.in',
+    contactPerson: 'Ramesh Sharma',
+    bankDetails: {
+      accountName: 'Global Tech Supplies',
+      accountNumber: '023405001234',
+      bankName: 'ICICI Bank',
+      ifsc: 'ICIC0000234',
+    },
+    notes: 'Authorized IT hardware & accessories vendor',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
+
+export const DEFAULT_CUSTOMERS: Customer[] = [
+  {
+    id: 'cust_default_1',
+    name: 'XYZ Enterprises',
+    gstin: '24AAACX9876J1Z1',
+    pan: 'AAACX9876J',
+    address: '501 Commerce Tower, Ashram Road',
+    city: 'Ahmedabad',
+    state: 'Gujarat',
+    stateCode: '24',
+    pincode: '380009',
+    phone: '+91 97234 56789',
+    email: 'purchase@xyzent.com',
+    contactPerson: 'Anil Mehta',
+    shippingAddress: {
+      address: 'Plot 12, GIDC Phase 2, Vatva',
+      city: 'Ahmedabad',
+      state: 'Gujarat',
+      stateCode: '24',
+      pincode: '382445',
+    },
+    notes: 'Regular corporate client (Interstate sales)',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'cust_default_2',
+    name: 'Apex Solutions',
+    gstin: '27AABCA9999P1Z8',
+    pan: 'AABCA9999P',
+    address: 'B-204 Crystal Plaza, Link Road, Malad West',
+    city: 'Mumbai',
+    state: 'Maharashtra',
+    stateCode: '27',
+    pincode: '400064',
+    phone: '+91 98205 99999',
+    email: 'accounts@apexsolutions.in',
+    contactPerson: 'Pooja Verma',
+    notes: 'Local client (Intrastate sales)',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
+
+export const DEFAULT_ITEMS: Item[] = [
+  {
+    id: 'item_default_1',
+    name: 'Laptop 15-inch Pro',
+    hsnCode: '8471',
+    sku: 'LAP-001',
+    unit: 'PCS',
+    rate: 55000,
+    gstPercent: 18,
+    cgstPercent: 9,
+    sgstPercent: 9,
+    igstPercent: 18,
+    description: '15.6-inch Intel Core i7 16GB RAM 512GB SSD Laptop',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'item_default_2',
+    name: 'Wireless Optical Mouse',
+    hsnCode: '8471',
+    sku: 'MOU-002',
+    unit: 'PCS',
+    rate: 650,
+    gstPercent: 18,
+    cgstPercent: 9,
+    sgstPercent: 9,
+    igstPercent: 18,
+    description: '2.4GHz Wireless USB Optical Mouse Ergonomic',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'item_default_3',
+    name: 'Mechanical Keyboard',
+    hsnCode: '8471',
+    sku: 'KEY-003',
+    unit: 'PCS',
+    rate: 2400,
+    gstPercent: 18,
+    cgstPercent: 9,
+    sgstPercent: 9,
+    igstPercent: 18,
+    description: 'RGB Backlit Mechanical Typing Keyboard',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'item_default_4',
+    name: 'Ergonomic Office Chair',
+    hsnCode: '9403',
+    sku: 'CHR-101',
+    unit: 'NOS',
+    rate: 8500,
+    gstPercent: 18,
+    cgstPercent: 9,
+    sgstPercent: 9,
+    igstPercent: 18,
+    description: 'High-back mesh ergonomic office executive chair',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'item_default_5',
+    name: 'USB-C Fast Charging Cable',
+    hsnCode: '8544',
+    sku: 'CBL-202',
+    unit: 'PCS',
+    rate: 450,
+    gstPercent: 18,
+    cgstPercent: 9,
+    sgstPercent: 9,
+    igstPercent: 18,
+    description: '100W Braided 1.5m Fast Charge Data Cable',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
 
 export const DEFAULT_SAP_CONFIG: SapIntegrationConfig = {
   id: 'sap_config_default',
@@ -32,9 +215,11 @@ export const DEFAULT_SAP_CONFIG: SapIntegrationConfig = {
     hasPassword: true,
   },
   csrfEnabled: true,
-  timeoutMs: 30000,
+  timeoutMs: 60000,
   isActive: true,
-  useMockFallback: true,
+  useMockFallback: false,
+  allowInsecureSsl: true,
+  proxyUrl: '',
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 };
@@ -52,6 +237,11 @@ const memoryStore = {
   sapConfig: { ...DEFAULT_SAP_CONFIG } as SapIntegrationConfig,
   sapMappings: [] as SapFieldMapping[],
   sapLogs: [] as SapUploadLog[],
+  companies: [...DEFAULT_COMPANIES] as Company[],
+  suppliers: [...DEFAULT_SUPPLIERS] as Supplier[],
+  customers: [...DEFAULT_CUSTOMERS] as Customer[],
+  items: [...DEFAULT_ITEMS] as Item[],
+  vouchers: [] as Voucher[],
 };
 
 // ----------------------------------------------------
@@ -1150,6 +1340,774 @@ export const dbSapLogs = {
       return;
     }
     await db.collection('sap_upload_logs').deleteMany({});
+  },
+};
+
+// ----------------------------------------------------
+// 12. Companies Collection (Master)
+// ----------------------------------------------------
+export const dbCompanies = {
+  async getAll(): Promise<Company[]> {
+    const db = await getDb();
+    if (!db) {
+      if (memoryStore.companies.length === 0) {
+        memoryStore.companies = [...DEFAULT_COMPANIES];
+      }
+      return [...memoryStore.companies].sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    const docs = await db.collection<Company>('companies').find({}).sort({ name: 1 }).toArray();
+    if (docs.length === 0) {
+      await db.collection('companies').insertMany(DEFAULT_COMPANIES as any);
+      return [...DEFAULT_COMPANIES];
+    }
+    return docs.map(({ _id, ...rest }: any) => rest as Company);
+  },
+
+  async getById(id: string): Promise<Company | null> {
+    const db = await getDb();
+    if (!db) {
+      return memoryStore.companies.find((c) => c.id === id) || null;
+    }
+    const doc = await db.collection<Company>('companies').findOne({ id });
+    if (!doc) return null;
+    const { _id, ...rest } = doc as any;
+    return rest as Company;
+  },
+
+  async create(data: Omit<Company, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }): Promise<Company> {
+    const company: Company = {
+      id: data.id || `comp_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      name: data.name.trim(),
+      gstin: data.gstin.trim().toUpperCase(),
+      pan: data.pan ? data.pan.trim().toUpperCase() : undefined,
+      address: data.address.trim(),
+      city: data.city.trim(),
+      state: data.state.trim(),
+      stateCode: data.stateCode.trim(),
+      pincode: data.pincode.trim(),
+      phone: data.phone.trim(),
+      email: data.email.trim().toLowerCase(),
+      bankDetails: data.bankDetails,
+      termsAndConditions: data.termsAndConditions,
+      notes: data.notes,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const db = await getDb();
+    if (!db) {
+      memoryStore.companies.unshift(company);
+      return company;
+    }
+
+    await db.collection('companies').updateOne({ id: company.id }, { $set: company }, { upsert: true });
+    return company;
+  },
+
+  async update(id: string, updates: Partial<Company>): Promise<Company | null> {
+    const payload = { ...updates, updatedAt: new Date().toISOString() };
+    const db = await getDb();
+    if (!db) {
+      const idx = memoryStore.companies.findIndex((c) => c.id === id);
+      if (idx === -1) return null;
+      memoryStore.companies[idx] = { ...memoryStore.companies[idx], ...payload };
+      return memoryStore.companies[idx];
+    }
+
+    await db.collection('companies').updateOne({ id }, { $set: payload });
+    return this.getById(id);
+  },
+
+  async delete(id: string): Promise<boolean> {
+    const db = await getDb();
+    if (!db) {
+      const idx = memoryStore.companies.findIndex((c) => c.id === id);
+      if (idx === -1) return false;
+      memoryStore.companies.splice(idx, 1);
+      return true;
+    }
+    const res = await db.collection('companies').deleteOne({ id });
+    return res.deletedCount > 0;
+  },
+};
+
+// ----------------------------------------------------
+// 13. Suppliers Collection (Master)
+// ----------------------------------------------------
+export const dbSuppliers = {
+  async getAll(): Promise<Supplier[]> {
+    const db = await getDb();
+    if (!db) {
+      if (memoryStore.suppliers.length === 0) {
+        memoryStore.suppliers = [...DEFAULT_SUPPLIERS];
+      }
+      return [...memoryStore.suppliers].sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    const docs = await db.collection<Supplier>('suppliers').find({}).sort({ name: 1 }).toArray();
+    if (docs.length === 0) {
+      await db.collection('suppliers').insertMany(DEFAULT_SUPPLIERS as any);
+      return [...DEFAULT_SUPPLIERS];
+    }
+    return docs.map(({ _id, ...rest }: any) => rest as Supplier);
+  },
+
+  async getById(id: string): Promise<Supplier | null> {
+    const db = await getDb();
+    if (!db) {
+      return memoryStore.suppliers.find((s) => s.id === id) || null;
+    }
+    const doc = await db.collection<Supplier>('suppliers').findOne({ id });
+    if (!doc) return null;
+    const { _id, ...rest } = doc as any;
+    return rest as Supplier;
+  },
+
+  async create(data: Omit<Supplier, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }): Promise<Supplier> {
+    const supplier: Supplier = {
+      id: data.id || `supp_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      name: data.name.trim(),
+      gstin: data.gstin ? data.gstin.trim().toUpperCase() : undefined,
+      pan: data.pan ? data.pan.trim().toUpperCase() : undefined,
+      address: data.address.trim(),
+      city: data.city.trim(),
+      state: data.state.trim(),
+      stateCode: data.stateCode.trim(),
+      pincode: data.pincode.trim(),
+      phone: data.phone.trim(),
+      email: data.email.trim().toLowerCase(),
+      contactPerson: data.contactPerson?.trim(),
+      bankDetails: data.bankDetails,
+      notes: data.notes,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const db = await getDb();
+    if (!db) {
+      memoryStore.suppliers.unshift(supplier);
+      return supplier;
+    }
+
+    await db.collection('suppliers').updateOne({ id: supplier.id }, { $set: supplier }, { upsert: true });
+    return supplier;
+  },
+
+  async update(id: string, updates: Partial<Supplier>): Promise<Supplier | null> {
+    const payload = { ...updates, updatedAt: new Date().toISOString() };
+    const db = await getDb();
+    if (!db) {
+      const idx = memoryStore.suppliers.findIndex((s) => s.id === id);
+      if (idx === -1) return null;
+      memoryStore.suppliers[idx] = { ...memoryStore.suppliers[idx], ...payload };
+      return memoryStore.suppliers[idx];
+    }
+
+    await db.collection('suppliers').updateOne({ id }, { $set: payload });
+    return this.getById(id);
+  },
+
+  async delete(id: string): Promise<boolean> {
+    const db = await getDb();
+    if (!db) {
+      const idx = memoryStore.suppliers.findIndex((s) => s.id === id);
+      if (idx === -1) return false;
+      memoryStore.suppliers.splice(idx, 1);
+      return true;
+    }
+    const res = await db.collection('suppliers').deleteOne({ id });
+    return res.deletedCount > 0;
+  },
+};
+
+// ----------------------------------------------------
+// 14. Customers Collection (Master)
+// ----------------------------------------------------
+export const dbCustomers = {
+  async getAll(): Promise<Customer[]> {
+    const db = await getDb();
+    if (!db) {
+      if (memoryStore.customers.length === 0) {
+        memoryStore.customers = [...DEFAULT_CUSTOMERS];
+      }
+      return [...memoryStore.customers].sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    const docs = await db.collection<Customer>('customers').find({}).sort({ name: 1 }).toArray();
+    if (docs.length === 0) {
+      await db.collection('customers').insertMany(DEFAULT_CUSTOMERS as any);
+      return [...DEFAULT_CUSTOMERS];
+    }
+    return docs.map(({ _id, ...rest }: any) => rest as Customer);
+  },
+
+  async getById(id: string): Promise<Customer | null> {
+    const db = await getDb();
+    if (!db) {
+      return memoryStore.customers.find((c) => c.id === id) || null;
+    }
+    const doc = await db.collection<Customer>('customers').findOne({ id });
+    if (!doc) return null;
+    const { _id, ...rest } = doc as any;
+    return rest as Customer;
+  },
+
+  async create(data: Omit<Customer, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }): Promise<Customer> {
+    const customer: Customer = {
+      id: data.id || `cust_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      name: data.name.trim(),
+      gstin: data.gstin ? data.gstin.trim().toUpperCase() : undefined,
+      pan: data.pan ? data.pan.trim().toUpperCase() : undefined,
+      address: data.address.trim(),
+      city: data.city.trim(),
+      state: data.state.trim(),
+      stateCode: data.stateCode.trim(),
+      pincode: data.pincode.trim(),
+      phone: data.phone.trim(),
+      email: data.email.trim().toLowerCase(),
+      contactPerson: data.contactPerson?.trim(),
+      shippingAddress: data.shippingAddress,
+      notes: data.notes,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const db = await getDb();
+    if (!db) {
+      memoryStore.customers.unshift(customer);
+      return customer;
+    }
+
+    await db.collection('customers').updateOne({ id: customer.id }, { $set: customer }, { upsert: true });
+    return customer;
+  },
+
+  async update(id: string, updates: Partial<Customer>): Promise<Customer | null> {
+    const payload = { ...updates, updatedAt: new Date().toISOString() };
+    const db = await getDb();
+    if (!db) {
+      const idx = memoryStore.customers.findIndex((c) => c.id === id);
+      if (idx === -1) return null;
+      memoryStore.customers[idx] = { ...memoryStore.customers[idx], ...payload };
+      return memoryStore.customers[idx];
+    }
+
+    await db.collection('customers').updateOne({ id }, { $set: payload });
+    return this.getById(id);
+  },
+
+  async delete(id: string): Promise<boolean> {
+    const db = await getDb();
+    if (!db) {
+      const idx = memoryStore.customers.findIndex((c) => c.id === id);
+      if (idx === -1) return false;
+      memoryStore.customers.splice(idx, 1);
+      return true;
+    }
+    const res = await db.collection('customers').deleteOne({ id });
+    return res.deletedCount > 0;
+  },
+};
+
+// ----------------------------------------------------
+// 15. Items Collection (Master)
+// ----------------------------------------------------
+export const dbItems = {
+  async getAll(): Promise<Item[]> {
+    const db = await getDb();
+    if (!db) {
+      if (memoryStore.items.length === 0) {
+        memoryStore.items = [...DEFAULT_ITEMS];
+      }
+      return [...memoryStore.items].sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    const docs = await db.collection<Item>('items').find({}).sort({ name: 1 }).toArray();
+    if (docs.length === 0) {
+      await db.collection('items').insertMany(DEFAULT_ITEMS as any);
+      return [...DEFAULT_ITEMS];
+    }
+    return docs.map(({ _id, ...rest }: any) => rest as Item);
+  },
+
+  async getById(id: string): Promise<Item | null> {
+    const db = await getDb();
+    if (!db) {
+      return memoryStore.items.find((i) => i.id === id) || null;
+    }
+    const doc = await db.collection<Item>('items').findOne({ id });
+    if (!doc) return null;
+    const { _id, ...rest } = doc as any;
+    return rest as Item;
+  },
+
+  async create(data: Omit<Item, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }): Promise<Item> {
+    const gstPercent = Number(data.gstPercent) || 0;
+    const halfGst = Number((gstPercent / 2).toFixed(2));
+    const item: Item = {
+      id: data.id || `item_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      name: data.name.trim(),
+      hsnCode: data.hsnCode.trim(),
+      sku: data.sku?.trim() || undefined,
+      unit: (data.unit || 'PCS').trim().toUpperCase(),
+      rate: Number(data.rate) || 0,
+      gstPercent,
+      cgstPercent: halfGst,
+      sgstPercent: halfGst,
+      igstPercent: gstPercent,
+      description: data.description?.trim() || undefined,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const db = await getDb();
+    if (!db) {
+      memoryStore.items.unshift(item);
+      return item;
+    }
+
+    await db.collection('items').updateOne({ id: item.id }, { $set: item }, { upsert: true });
+    return item;
+  },
+
+  async update(id: string, updates: Partial<Item>): Promise<Item | null> {
+    let payload = { ...updates, updatedAt: new Date().toISOString() };
+    if (updates.gstPercent !== undefined) {
+      const gstPercent = Number(updates.gstPercent) || 0;
+      const halfGst = Number((gstPercent / 2).toFixed(2));
+      payload = {
+        ...payload,
+        gstPercent,
+        cgstPercent: halfGst,
+        sgstPercent: halfGst,
+        igstPercent: gstPercent,
+      };
+    }
+
+    const db = await getDb();
+    if (!db) {
+      const idx = memoryStore.items.findIndex((i) => i.id === id);
+      if (idx === -1) return null;
+      memoryStore.items[idx] = { ...memoryStore.items[idx], ...payload };
+      return memoryStore.items[idx];
+    }
+
+    await db.collection('items').updateOne({ id }, { $set: payload });
+    return this.getById(id);
+  },
+
+  async delete(id: string): Promise<boolean> {
+    const db = await getDb();
+    if (!db) {
+      const idx = memoryStore.items.findIndex((i) => i.id === id);
+      if (idx === -1) return false;
+      memoryStore.items.splice(idx, 1);
+      return true;
+    }
+    const res = await db.collection('items').deleteOne({ id });
+    return res.deletedCount > 0;
+  },
+};
+
+// ----------------------------------------------------
+// 16. Vouchers Collection (Sales, Purchase, Receipt, Payment)
+// ----------------------------------------------------
+export const dbVouchers = {
+  async getNextVoucherNumber(type: VoucherType): Promise<string> {
+    const prefixMap: Record<VoucherType, string> = {
+      sales: 'INV-',
+      purchase: 'PUR-',
+      receipt: 'REC-',
+      payment: 'PAY-',
+    };
+    const prefix = prefixMap[type] || 'VOU-';
+
+    const db = await getDb();
+    if (!db) {
+      const count = memoryStore.vouchers.filter((v) => v.voucherType === type).length;
+      return `${prefix}${1001 + count}`;
+    }
+
+    const count = await db.collection('vouchers').countDocuments({ voucherType: type });
+    return `${prefix}${1001 + count}`;
+  },
+
+  async getAll(filters?: {
+    voucherType?: VoucherType | 'all';
+    companyId?: string;
+    customerId?: string;
+    supplierId?: string;
+    date?: string;
+    search?: string;
+  }): Promise<Voucher[]> {
+    const db = await getDb();
+    let list: Voucher[] = [];
+
+    if (!db) {
+      list = [...memoryStore.vouchers];
+    } else {
+      const query: any = {};
+      if (filters?.voucherType && filters.voucherType !== 'all') {
+        query.voucherType = filters.voucherType;
+      }
+      if (filters?.companyId && filters.companyId !== 'all') {
+        query.companyId = filters.companyId;
+      }
+      if (filters?.customerId && filters.customerId !== 'all') {
+        query.customerId = filters.customerId;
+      }
+      if (filters?.supplierId && filters.supplierId !== 'all') {
+        query.supplierId = filters.supplierId;
+      }
+      if (filters?.date) {
+        query.date = filters.date;
+      }
+
+      const docs = await db
+        .collection<Voucher>('vouchers')
+        .find(query)
+        .sort({ date: -1, createdAt: -1 })
+        .toArray();
+      list = docs.map(({ _id, ...rest }: any) => rest as Voucher);
+    }
+
+    // Apply memory filters if offline or additional text search
+    if (!db) {
+      if (filters?.voucherType && filters.voucherType !== 'all') {
+        list = list.filter((v) => v.voucherType === filters.voucherType);
+      }
+      if (filters?.companyId && filters.companyId !== 'all') {
+        list = list.filter((v) => v.companyId === filters.companyId);
+      }
+      if (filters?.customerId && filters.customerId !== 'all') {
+        list = list.filter((v) => v.customerId === filters.customerId);
+      }
+      if (filters?.supplierId && filters.supplierId !== 'all') {
+        list = list.filter((v) => v.supplierId === filters.supplierId);
+      }
+      if (filters?.date) {
+        list = list.filter((v) => v.date === filters.date);
+      }
+      list.sort((a, b) => (b.date > a.date ? 1 : -1));
+    }
+
+    if (filters?.search?.trim()) {
+      const q = filters.search.trim().toLowerCase();
+      list = list.filter((v) => {
+        const num = (v.voucherNumber || '').toLowerCase();
+        const comp = (v.companySnapshot?.name || '').toLowerCase();
+        const cust = (v.customerSnapshot?.name || '').toLowerCase();
+        const supp = (v.supplierSnapshot?.name || '').toLowerCase();
+        const ref = (v.referenceInvoiceNumber || v.supplierInvoiceNumber || '').toLowerCase();
+        const hasItem = (v.items || []).some((i) => i.itemName.toLowerCase().includes(q));
+        return num.includes(q) || comp.includes(q) || cust.includes(q) || supp.includes(q) || ref.includes(q) || hasItem;
+      });
+    }
+
+    return list;
+  },
+
+  async getById(id: string): Promise<Voucher | null> {
+    const db = await getDb();
+    if (!db) {
+      return memoryStore.vouchers.find((v) => v.id === id) || null;
+    }
+    const doc = await db.collection<Voucher>('vouchers').findOne({ id });
+    if (!doc) return null;
+    const { _id, ...rest } = doc as any;
+    return rest as Voucher;
+  },
+
+  async create(data: Omit<Voucher, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }): Promise<Voucher> {
+    // 1. Resolve Company snapshot
+    const company = await dbCompanies.getById(data.companyId);
+    if (!company) {
+      throw new Error(`Company with ID "${data.companyId}" not found in Company master.`);
+    }
+
+    const companySnapshot: Partial<Company> = {
+      id: company.id,
+      name: company.name,
+      gstin: company.gstin,
+      pan: company.pan,
+      address: company.address,
+      city: company.city,
+      state: company.state,
+      stateCode: company.stateCode,
+      pincode: company.pincode,
+      phone: company.phone,
+      email: company.email,
+      bankDetails: company.bankDetails,
+      termsAndConditions: company.termsAndConditions,
+    };
+
+    // 2. Resolve Customer snapshot (Sales / Receipt)
+    let customerSnapshot: Partial<Customer> | undefined = undefined;
+    if (data.customerId) {
+      const customer = await dbCustomers.getById(data.customerId);
+      if (!customer) {
+        throw new Error(`Customer with ID "${data.customerId}" not found in Customer master.`);
+      }
+      customerSnapshot = {
+        id: customer.id,
+        name: customer.name,
+        gstin: customer.gstin,
+        pan: customer.pan,
+        address: customer.address,
+        city: customer.city,
+        state: customer.state,
+        stateCode: customer.stateCode,
+        pincode: customer.pincode,
+        phone: customer.phone,
+        email: customer.email,
+        contactPerson: customer.contactPerson,
+        shippingAddress: customer.shippingAddress,
+      };
+    }
+
+    // 3. Resolve Supplier snapshot (Purchase / Payment)
+    let supplierSnapshot: Partial<Supplier> | undefined = undefined;
+    if (data.supplierId) {
+      const supplier = await dbSuppliers.getById(data.supplierId);
+      if (!supplier) {
+        throw new Error(`Supplier with ID "${data.supplierId}" not found in Supplier master.`);
+      }
+      supplierSnapshot = {
+        id: supplier.id,
+        name: supplier.name,
+        gstin: supplier.gstin,
+        pan: supplier.pan,
+        address: supplier.address,
+        city: supplier.city,
+        state: supplier.state,
+        stateCode: supplier.stateCode,
+        pincode: supplier.pincode,
+        phone: supplier.phone,
+        email: supplier.email,
+        contactPerson: supplier.contactPerson,
+      };
+    }
+
+    const voucherNumber = data.voucherNumber || (await this.getNextVoucherNumber(data.voucherType));
+
+    const voucher: Voucher = {
+      id: data.id || `vouch_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      voucherType: data.voucherType,
+      voucherNumber,
+      date: data.date || new Date().toISOString().split('T')[0],
+      companyId: company.id,
+      companySnapshot,
+      customerId: data.customerId || undefined,
+      customerSnapshot,
+      supplierId: data.supplierId || undefined,
+      supplierSnapshot,
+      items: data.items || [],
+      subtotal: data.subtotal || 0,
+      taxableAmount: data.taxableAmount || 0,
+      cgstTotal: data.cgstTotal || 0,
+      sgstTotal: data.sgstTotal || 0,
+      igstTotal: data.igstTotal || 0,
+      taxTotal: data.taxTotal || 0,
+      roundOff: data.roundOff || 0,
+      grandTotal: data.grandTotal,
+      placeOfSupply: data.placeOfSupply || customerSnapshot?.state || companySnapshot.state,
+      reverseCharge: !!data.reverseCharge,
+      supplierInvoiceNumber: data.supplierInvoiceNumber,
+      supplierInvoiceDate: data.supplierInvoiceDate,
+      shipTo: data.shipTo,
+      paymentStatus: data.paymentStatus || 'unpaid',
+      amount: data.amount !== undefined ? data.amount : data.grandTotal,
+      referenceInvoiceNumber: data.referenceInvoiceNumber,
+      paymentMode: data.paymentMode || 'Cash',
+      bankName: data.bankName,
+      referenceTransactionNumber: data.referenceTransactionNumber,
+      narration: data.narration,
+      notes: data.notes,
+      termsAndConditions: data.termsAndConditions || company.termsAndConditions,
+      rawTranscript: data.rawTranscript,
+      audioUrl: data.audioUrl,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const db = await getDb();
+    if (!db) {
+      memoryStore.vouchers.unshift(voucher);
+      return voucher;
+    }
+
+    await db.collection('vouchers').updateOne({ id: voucher.id }, { $set: voucher }, { upsert: true });
+    return voucher;
+  },
+
+  async update(id: string, updates: Partial<Voucher>): Promise<Voucher | null> {
+    const payload = { ...updates, updatedAt: new Date().toISOString() };
+    const db = await getDb();
+    if (!db) {
+      const idx = memoryStore.vouchers.findIndex((v) => v.id === id);
+      if (idx === -1) return null;
+      memoryStore.vouchers[idx] = { ...memoryStore.vouchers[idx], ...payload };
+      return memoryStore.vouchers[idx];
+    }
+
+    await db.collection('vouchers').updateOne({ id }, { $set: payload });
+    return this.getById(id);
+  },
+
+  async delete(id: string): Promise<boolean> {
+    const db = await getDb();
+    if (!db) {
+      const idx = memoryStore.vouchers.findIndex((v) => v.id === id);
+      if (idx === -1) return false;
+      memoryStore.vouchers.splice(idx, 1);
+      return true;
+    }
+    const res = await db.collection('vouchers').deleteOne({ id });
+    return res.deletedCount > 0;
+  },
+};
+
+// ----------------------------------------------------
+// 17. Account / Ledger Reporting Engine
+// ----------------------------------------------------
+export const dbLedger = {
+  async getTransactions(filters?: {
+    companyId?: string;
+    customerId?: string;
+    supplierId?: string;
+    voucherType?: VoucherType | 'all';
+    fromDate?: string;
+    toDate?: string;
+  }): Promise<{ transactions: AccountTransaction[]; summary: LedgerSummary }> {
+    const vouchers = await dbVouchers.getAll();
+
+    // Filter vouchers chronologically
+    let filtered = vouchers.filter((v) => {
+      if (filters?.companyId && filters.companyId !== 'all' && v.companyId !== filters.companyId) {
+        return false;
+      }
+      if (filters?.customerId && filters.customerId !== 'all' && v.customerId !== filters.customerId) {
+        return false;
+      }
+      if (filters?.supplierId && filters.supplierId !== 'all' && v.supplierId !== filters.supplierId) {
+        return false;
+      }
+      if (filters?.voucherType && filters.voucherType !== 'all' && v.voucherType !== filters.voucherType) {
+        return false;
+      }
+      if (filters?.fromDate && v.date < filters.fromDate) {
+        return false;
+      }
+      if (filters?.toDate && v.date > filters.toDate) {
+        return false;
+      }
+      return true;
+    });
+
+    // Sort chronologically (oldest to newest) to compute correct running balance
+    filtered.sort((a, b) => {
+      if (a.date === b.date) return a.createdAt.localeCompare(b.createdAt);
+      return a.date.localeCompare(b.date);
+    });
+
+    let runningBalance = 0;
+    let totalDebit = 0;
+    let totalCredit = 0;
+
+    const transactions: AccountTransaction[] = filtered.map((v) => {
+      let partyName = 'Unknown Party';
+      let partyType: 'customer' | 'supplier' | 'other' = 'other';
+      let partyId = undefined;
+      let debit = 0;
+      let credit = 0;
+      let description = '';
+
+      const amount = v.amount || v.grandTotal || 0;
+
+      switch (v.voucherType) {
+        case 'sales':
+          partyName = v.customerSnapshot?.name || 'Customer';
+          partyType = 'customer';
+          partyId = v.customerId;
+          description = `Sales Invoice #${v.voucherNumber}`;
+          // Company perspective: Sales debits Customer receivables
+          debit = amount;
+          credit = 0;
+          break;
+
+        case 'receipt':
+          partyName = v.customerSnapshot?.name || 'Customer';
+          partyType = 'customer';
+          partyId = v.customerId;
+          description = `Money Received #${v.voucherNumber}${
+            v.referenceInvoiceNumber ? ` against Inv #${v.referenceInvoiceNumber}` : ''
+          } via ${v.paymentMode || 'Payment'}`;
+          // Money received: Credits Customer receivables (Cash in)
+          debit = 0;
+          credit = amount;
+          break;
+
+        case 'purchase':
+          partyName = v.supplierSnapshot?.name || 'Supplier';
+          partyType = 'supplier';
+          partyId = v.supplierId;
+          description = `Purchase Bill #${v.voucherNumber}${
+            v.supplierInvoiceNumber ? ` (Ref: ${v.supplierInvoiceNumber})` : ''
+          }`;
+          // Purchase bill: Credits Supplier payables
+          debit = 0;
+          credit = amount;
+          break;
+
+        case 'payment':
+          partyName = v.supplierSnapshot?.name || 'Supplier';
+          partyType = 'supplier';
+          partyId = v.supplierId;
+          description = `Money Paid #${v.voucherNumber}${
+            v.referenceInvoiceNumber ? ` against Bill #${v.referenceInvoiceNumber}` : ''
+          } via ${v.paymentMode || 'Payment'}`;
+          // Payment to supplier: Debits Supplier payables (Cash out)
+          debit = amount;
+          credit = 0;
+          break;
+      }
+
+      totalDebit += debit;
+      totalCredit += credit;
+      runningBalance += debit - credit;
+
+      return {
+        id: `tx_${v.id}`,
+        date: v.date,
+        voucherId: v.id,
+        voucherNumber: v.voucherNumber,
+        voucherType: v.voucherType,
+        companyId: v.companyId,
+        companyName: v.companySnapshot?.name || 'Company',
+        partyId,
+        partyName,
+        partyType,
+        description: v.narration || description,
+        debit: Number(debit.toFixed(2)),
+        credit: Number(credit.toFixed(2)),
+        balance: Number(runningBalance.toFixed(2)),
+      };
+    });
+
+    const summary: LedgerSummary = {
+      totalDebit: Number(totalDebit.toFixed(2)),
+      totalCredit: Number(totalCredit.toFixed(2)),
+      closingBalance: Number(Math.abs(runningBalance).toFixed(2)),
+      balanceType: runningBalance >= 0 ? 'Dr' : 'Cr',
+      transactionsCount: transactions.length,
+    };
+
+    // Return in reverse chronological order (newest first) for UI display
+    return {
+      transactions: transactions.reverse(),
+      summary,
+    };
   },
 };
 

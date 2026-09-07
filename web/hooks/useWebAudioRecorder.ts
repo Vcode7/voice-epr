@@ -66,7 +66,17 @@ export const useWebAudioRecorder = (): UseWebAudioRecorderReturn => {
       setDurationSeconds(0);
       audioChunksRef.current = [];
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!navigator?.mediaDevices?.getUserMedia) {
+        throw new Error('Audio recording is not supported on this device.');
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
       streamRef.current = stream;
 
       try {
@@ -97,16 +107,18 @@ export const useWebAudioRecorder = (): UseWebAudioRecorderReturn => {
         console.warn('Web Audio visualizer could not be initialized:', e);
       }
 
-      let mimeType = 'audio/webm';
+      let options: MediaRecorderOptions = {};
       if (typeof MediaRecorder !== 'undefined') {
         if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
-          mimeType = 'audio/webm;codecs=opus';
+          options = { mimeType: 'audio/webm;codecs=opus' };
+        } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+          options = { mimeType: 'audio/webm' };
         } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
-          mimeType = 'audio/mp4';
+          options = { mimeType: 'audio/mp4' };
         }
       }
 
-      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      const mediaRecorder = new MediaRecorder(stream, options);
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
@@ -123,7 +135,15 @@ export const useWebAudioRecorder = (): UseWebAudioRecorderReturn => {
       }, 1000);
     } catch (err: any) {
       console.error('[WebAudioRecorder] Error:', err);
-      setErrorMessage(err.message || 'Microphone access denied or unavailable.');
+      let friendlyError = err.message || 'Microphone access denied or unavailable.';
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        friendlyError = 'Microphone access denied. Please enable microphone permissions in Windows Settings > Privacy & security > Microphone.';
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        friendlyError = 'No microphone detected on this computer. Please connect a microphone or headset.';
+      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+        friendlyError = 'Microphone is currently in use by another application (e.g. Teams, Zoom).';
+      }
+      setErrorMessage(friendlyError);
       setState('Error');
     }
   }, []);
@@ -145,6 +165,13 @@ export const useWebAudioRecorder = (): UseWebAudioRecorderReturn => {
         cleanupStream();
         resolve(blob);
       };
+
+      // Flush buffered audio chunks before closing
+      try {
+        if (mediaRecorderRef.current.state === 'recording') {
+          mediaRecorderRef.current.requestData();
+        }
+      } catch (_) {}
 
       mediaRecorderRef.current.stop();
     });

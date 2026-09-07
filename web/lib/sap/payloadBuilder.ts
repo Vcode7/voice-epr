@@ -26,15 +26,51 @@ export class PayloadBuilder {
 
       let rawValue = record.fieldValues?.[rule.templateFieldKey];
 
-      // Check if flexible field
-      if (rawValue === undefined && record.flexibleFields) {
+      // 1a. Check templateFieldName in fieldValues
+      if ((rawValue === undefined || rawValue === '') && record.fieldValues && rule.templateFieldName) {
+        rawValue = record.fieldValues[rule.templateFieldName];
+      }
+
+      // 1b. Case-insensitive lookup in fieldValues
+      if ((rawValue === undefined || rawValue === '') && record.fieldValues) {
+        const targetKeyLower = (rule.templateFieldKey || '').toLowerCase();
+        const targetNameLower = (rule.templateFieldName || '').toLowerCase();
+        for (const [k, v] of Object.entries(record.fieldValues)) {
+          const kLower = k.toLowerCase();
+          if (kLower === targetKeyLower || kLower === targetNameLower) {
+            rawValue = v;
+            break;
+          }
+        }
+      }
+
+      // 1c. Check if flexible field
+      if ((rawValue === undefined || rawValue === '') && record.flexibleFields) {
         const flexMatch = record.flexibleFields.find(
-          (f) => f.name.toLowerCase() === rule.templateFieldName.toLowerCase()
+          (f) =>
+            f.name.toLowerCase() === (rule.templateFieldName || '').toLowerCase() ||
+            f.name.toLowerCase() === (rule.templateFieldKey || '').toLowerCase()
         );
         if (flexMatch) rawValue = flexMatch.value;
       }
 
-      // Check default/static value fallback
+      // 1d. Check tableRows if value is in a table item (e.g., table row quantity or material)
+      if ((rawValue === undefined || rawValue === '') && Array.isArray(record.tableRows) && record.tableRows.length > 0) {
+        const firstRow = record.tableRows[0];
+        if (firstRow && typeof firstRow === 'object') {
+          const targetKeyLower = (rule.templateFieldKey || '').toLowerCase();
+          const targetNameLower = (rule.templateFieldName || '').toLowerCase();
+          for (const [k, v] of Object.entries(firstRow)) {
+            const kLower = k.toLowerCase();
+            if (kLower === targetKeyLower || kLower === targetNameLower) {
+              rawValue = v;
+              break;
+            }
+          }
+        }
+      }
+
+      // 1e. Check default/static value fallback
       if (rawValue === undefined || rawValue === null || rawValue === '') {
         rawValue = rule.defaultValue ?? '';
       }
@@ -112,10 +148,15 @@ export class PayloadBuilder {
    * Casts and formats a raw Voice Entry value into the appropriate SAP OData type.
    */
   private static castValue(val: any, sapType: string, transform?: string): any {
+    const sType = (sapType || '').toLowerCase();
+
     if (val === undefined || val === null || val === '') {
-      if (sapType.includes('String')) return '';
-      if (sapType.includes('Int') || sapType.includes('Decimal')) return 0;
-      if (sapType.includes('Boolean')) return false;
+      if (sType.includes('string')) return '';
+      if (sType.includes('decimal')) return '0.000';
+      if (sType.includes('int64')) return '0';
+      if (sType.includes('int') || sType.includes('byte')) return 0;
+      if (sType.includes('boolean')) return false;
+      if (sType.includes('datetime')) return `/Date(${Date.now()})/`;
       return null;
     }
 
@@ -126,46 +167,52 @@ export class PayloadBuilder {
     if (transform === 'lowercase') stringVal = stringVal.toLowerCase();
     if (transform === 'trim') stringVal = stringVal.trim();
 
-    const sType = sapType.toLowerCase();
-
     // 1. String
     if (sType.includes('string')) {
       return stringVal;
     }
 
-    // 2. Integers (Edm.Int16, Edm.Int32, Edm.Int64, Edm.Byte)
+    // 2. Integers
+    if (sType.includes('int64')) {
+      const clean = stringVal.replace(/[^0-9\-]/g, '');
+      return clean || '0';
+    }
     if (sType.includes('int') || sType.includes('byte')) {
       const num = parseInt(stringVal.replace(/[^0-9\-]/g, ''), 10);
       return isNaN(num) ? 0 : num;
     }
 
-    // 3. Decimals, Floats, Doubles (Edm.Decimal, Edm.Double, Edm.Single)
-    if (sType.includes('decimal') || sType.includes('double') || sType.includes('single')) {
+    // 3. Decimals (Edm.Decimal MUST be a quoted string in SAP OData JSON representation, e.g. "5.000" or "5.50")
+    if (sType.includes('decimal')) {
+      const clean = stringVal.replace(/[^0-9\.\-]/g, '');
+      const num = parseFloat(clean);
+      if (isNaN(num)) return '0.000';
+      if (clean.includes('.')) {
+        return clean;
+      }
+      return `${clean}.000`;
+    }
+
+    // 4. Doubles and Floats (Edm.Double, Edm.Single)
+    if (sType.includes('double') || sType.includes('single')) {
       const num = parseFloat(stringVal.replace(/[^0-9\.\-]/g, ''));
       return isNaN(num) ? 0.0 : num;
     }
 
-    // 4. Boolean (Edm.Boolean)
+    // 5. Boolean (Edm.Boolean)
     if (sType.includes('boolean')) {
       const lower = stringVal.toLowerCase();
       return lower === 'true' || lower === '1' || lower === 'yes' || lower === 'x';
     }
 
-    // 5. DateTime (Edm.DateTime, Edm.DateTimeOffset)
+    // 6. DateTime (Edm.DateTime, Edm.DateTimeOffset) - Default to SAP OData v2 /Date(timestamp)/
     if (sType.includes('datetime')) {
-      if (transform === 'date_sap') {
-        // SAP OData v2 JSON format: /Date(1620000000000)/
-        const d = new Date(stringVal);
-        const timestamp = isNaN(d.getTime()) ? Date.now() : d.getTime();
-        return `/Date(${timestamp})/`;
-      } else {
-        // ISO 8601 string: 2026-09-03T00:00:00
-        const d = new Date(stringVal);
-        if (isNaN(d.getTime())) {
-          return new Date().toISOString().split('.')[0];
-        }
-        return d.toISOString().split('.')[0];
+      const d = new Date(stringVal);
+      const timestamp = isNaN(d.getTime()) ? Date.now() : d.getTime();
+      if (transform === 'date_iso') {
+        return isNaN(d.getTime()) ? new Date().toISOString().split('.')[0] : d.toISOString().split('.')[0];
       }
+      return `/Date(${timestamp})/`;
     }
 
     return stringVal;

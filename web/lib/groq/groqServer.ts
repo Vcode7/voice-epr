@@ -8,6 +8,13 @@ import {
   FlexibleField,
   FlexibleTable,
   ExtractedPrescriptionResult,
+  Company,
+  Supplier,
+  Customer,
+  Item,
+  VoucherType,
+  VoiceVoucherExtractionResult,
+  VoiceVoucherValidationIssue,
 } from '../../types';
 import { dbSettings } from '../db/models';
 import { normalizeAndAutoFillTemplateData } from '../utils/autoFillHelper';
@@ -1689,4 +1696,492 @@ Return ONLY a valid raw JSON object matching:
       raw_transcript: transcript,
     };
   }
+
+  /**
+   * Extract Structured Voucher from Voice Transcript with Master Data Validation
+   */
+  public static async extractVoiceVoucher(
+    transcript: string,
+    voucherType: VoucherType,
+    masters: {
+      companies: Company[];
+      customers: Customer[];
+      suppliers: Supplier[];
+      items: Item[];
+    },
+    customKey?: string | null
+  ): Promise<VoiceVoucherExtractionResult> {
+    const keys = await this.getAllKeys(customKey);
+    if (keys.length === 0) {
+      return this.localHeuristicVoucherParser(transcript, voucherType, masters);
+    }
+
+    const companyList = masters.companies.map((c) => ({ id: c.id, name: c.name, gstin: c.gstin }));
+    const customerList = masters.customers.map((c) => ({ id: c.id, name: c.name, city: c.city, state: c.state }));
+    const supplierList = masters.suppliers.map((s) => ({ id: s.id, name: s.name, city: s.city, state: s.state }));
+    const itemList = masters.items.map((i) => ({
+      id: i.id,
+      name: i.name,
+      hsn: i.hsnCode,
+      rate: i.rate,
+      unit: i.unit,
+      gstPercent: i.gstPercent,
+    }));
+
+    const systemPrompt = `You are a strict Master-Data-Aware Voice Voucher Extractor for Indian GST Invoicing & Accounting.
+Voucher Type to Extract: "${voucherType.toUpperCase()}"
+
+MASTER DATA DICTIONARY (Only entries listed here are valid in the system):
+COMPANIES: ${JSON.stringify(companyList)}
+CUSTOMERS: ${JSON.stringify(customerList)}
+SUPPLIERS: ${JSON.stringify(supplierList)}
+ITEMS: ${JSON.stringify(itemList)}
+
+RULES BY VOUCHER TYPE:
+1. "SALES" Voucher:
+   - Voice pattern: "Sales entry from [Company] to [Customer], items..."
+   - "companyId" MUST be chosen strictly from the COMPANIES master.
+   - "customerId" MUST be chosen strictly from the CUSTOMERS master.
+   - Items MUST be matched strictly with the ITEMS master.
+   - Extract: quantity, rate (if spoken, else item default), discount, notes, date.
+
+2. "PURCHASE" Voucher:
+   - Voice pattern: "Purchase from [Supplier] to [Company], items..."
+   - "companyId" MUST be chosen strictly from COMPANIES.
+   - "supplierId" MUST be chosen strictly from SUPPLIERS.
+   - Items MUST be matched strictly with ITEMS.
+   - Extract: supplier invoice number (e.g. "PUR-101"), date, items, rates, quantity.
+
+3. "RECEIPT" Voucher:
+   - Voice pattern: "Received ₹[amount] from [Customer] against invoice [INV-XXX] via [mode]..."
+   - "customerId" MUST match CUSTOMERS master.
+   - Extract: amount, referenceInvoiceNumber, paymentMode (Cash, Bank Transfer, NEFT/RTGS, Cheque, UPI), bankName, referenceTransactionNumber, narration.
+
+4. "PAYMENT" Voucher:
+   - Voice pattern: "Paid ₹[amount] to [Supplier] against purchase invoice [PUR-XXX] via [mode]..."
+   - "supplierId" MUST match SUPPLIERS master.
+   - Extract: amount, referenceInvoiceNumber, paymentMode, bankName, referenceTransactionNumber, narration.
+
+STRICT MASTER VALIDATION:
+- If a spoken company name does not exist in COMPANIES, set "companyId": null, "spokenCompanyName": "<name>" and add an issue to "validationIssues":
+  {"field": "company", "message": "Company \\"<name>\\" not found in Company master.", "spokenValue": "<name>"}
+- If a spoken customer name does not exist in CUSTOMERS, set "customerId": null, "spokenCustomerName": "<name>" and add an issue to "validationIssues":
+  {"field": "customer", "message": "Customer \\"<name>\\" not found. Please add the customer in Customer master before creating this voucher.", "spokenValue": "<name>"}
+- If a spoken supplier name does not exist in SUPPLIERS, set "supplierId": null, "spokenSupplierName": "<name>" and add an issue to "validationIssues":
+  {"field": "supplier", "message": "Supplier \\"<name>\\" not found in Supplier master.", "spokenValue": "<name>"}
+- If any spoken item does not exist in ITEMS, set "itemId": null and add an issue to "validationIssues":
+  {"field": "item", "message": "Item \\"<name>\\" not found in Item master. Please add it to Items first.", "spokenValue": "<name>"}
+
+Return ONLY a JSON object matching this structure:
+{
+  "voucherType": "${voucherType}",
+  "companyId": "string or null",
+  "companyName": "string or null",
+  "customerId": "string or null",
+  "customerName": "string or null",
+  "supplierId": "string or null",
+  "supplierName": "string or null",
+  "date": "DD-MM-YYYY or YYYY-MM-DD",
+  "items": [
+    {
+      "itemId": "string or null",
+      "name": "Item Name",
+      "quantity": 1,
+      "unit": "PCS",
+      "rate": 500,
+      "discount": 0,
+      "gstPercent": 18
+    }
+  ],
+  "amount": 0,
+  "referenceInvoiceNumber": "string or null",
+  "paymentMode": "Cash | Bank Transfer | NEFT/RTGS | Cheque | UPI",
+  "referenceTransactionNumber": "string or null",
+  "narration": "string or null",
+  "notes": "string or null",
+  "validationIssues": [
+    { "field": "customer", "message": "...", "spokenValue": "..." }
+  ]
+}`;
+
+    try {
+      return await this.executeWithFailover('LLM Voice Voucher Extraction', customKey, async (apiKey) => {
+        const response = await fetch(GROQ_API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: LLM_MODEL,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: `Voice command: "${transcript}"` },
+            ],
+            temperature: 0.1,
+            reasoning_effort: 'none',
+            response_format: { type: 'json_object' },
+          }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          if (this.isFailoverEligibleError(response.status, errorText)) {
+            const err = new Error(`Rate limit or API error hit (Status ${response.status}): ${errorText}`);
+            (err as any).status = response.status;
+            (err as any).errorText = errorText;
+            throw err;
+          }
+          return this.localHeuristicVoucherParser(transcript, voucherType, masters);
+        }
+
+        const data = await response.json();
+        const content = data.choices[0]?.message?.content;
+        if (!content) return this.localHeuristicVoucherParser(transcript, voucherType, masters);
+
+        const parsed = cleanAndParseJson<any>(content);
+        return this.postProcessAndValidateVoucher(parsed, transcript, voucherType, masters);
+      });
+    } catch (e) {
+      console.warn('⚠️ [Voice Voucher] LLM failed, using heuristic parser:', e);
+      return this.localHeuristicVoucherParser(transcript, voucherType, masters);
+    }
+  }
+
+  /**
+   * Post-processes and programmatically validates master links
+   */
+  private static postProcessAndValidateVoucher(
+    parsed: any,
+    transcript: string,
+    voucherType: VoucherType,
+    masters: {
+      companies: Company[];
+      customers: Customer[];
+      suppliers: Supplier[];
+      items: Item[];
+    }
+  ): VoiceVoucherExtractionResult {
+    const validationIssues: VoiceVoucherValidationIssue[] = Array.isArray(parsed.validationIssues)
+      ? [...parsed.validationIssues]
+      : [];
+
+    // Helper to find best master match
+    const findMatch = <T extends { id: string; name: string }>(spoken: string | undefined, list: T[]): T | null => {
+      if (!spoken || !spoken.trim()) return null;
+      const s = spoken.trim().toLowerCase();
+      // Exact match
+      const exact = list.find((i) => i.name.toLowerCase() === s);
+      if (exact) return exact;
+      // Substring match
+      const sub = list.find((i) => i.name.toLowerCase().includes(s) || s.includes(i.name.toLowerCase()));
+      if (sub) return sub;
+      return null;
+    };
+
+    // 1. Company
+    let matchedCompany: Company | null = masters.companies.find((c) => c.id === parsed.companyId) || null;
+    if (!matchedCompany && parsed.companyName) {
+      matchedCompany = findMatch(parsed.companyName, masters.companies);
+    }
+    if (!matchedCompany && masters.companies.length === 1) {
+      // Default to the single registered company if not explicitly rejected
+      matchedCompany = masters.companies[0];
+    }
+
+    if (!matchedCompany) {
+      const spoken = parsed.companyName || parsed.spokenCompanyName;
+      if (spoken) {
+        validationIssues.push({
+          field: 'company',
+          message: `Company "${spoken}" not found in Company master. Please add it in Company master.`,
+          spokenValue: spoken,
+        });
+      } else {
+        validationIssues.push({
+          field: 'company',
+          message: `Company is required. Please select a company from Company master.`,
+        });
+      }
+    }
+
+    // 2. Customer (for Sales & Receipt)
+    let matchedCustomer: Customer | null = null;
+    if (voucherType === 'sales' || voucherType === 'receipt') {
+      matchedCustomer = masters.customers.find((c) => c.id === parsed.customerId) || null;
+      if (!matchedCustomer && parsed.customerName) {
+        matchedCustomer = findMatch(parsed.customerName, masters.customers);
+      }
+      if (!matchedCustomer) {
+        const spoken = parsed.customerName || parsed.spokenCustomerName;
+        if (spoken) {
+          validationIssues.push({
+            field: 'customer',
+            message: `Customer "${spoken}" not found. Please add the customer in Customer master before creating this voucher.`,
+            spokenValue: spoken,
+          });
+        } else {
+          validationIssues.push({
+            field: 'customer',
+            message: `Customer is required for ${voucherType === 'sales' ? 'sales invoice' : 'receipt voucher'}. Please select a customer.`,
+          });
+        }
+      }
+    }
+
+    // 3. Supplier (for Purchase & Payment)
+    let matchedSupplier: Supplier | null = null;
+    if (voucherType === 'purchase' || voucherType === 'payment') {
+      matchedSupplier = masters.suppliers.find((s) => s.id === parsed.supplierId) || null;
+      if (!matchedSupplier && parsed.supplierName) {
+        matchedSupplier = findMatch(parsed.supplierName, masters.suppliers);
+      }
+      if (!matchedSupplier) {
+        const spoken = parsed.supplierName || parsed.spokenSupplierName;
+        if (spoken) {
+          validationIssues.push({
+            field: 'supplier',
+            message: `Supplier "${spoken}" not found in Supplier master. Please add the supplier in Supplier master before creating this voucher.`,
+            spokenValue: spoken,
+          });
+        } else {
+          validationIssues.push({
+            field: 'supplier',
+            message: `Supplier is required for ${voucherType === 'purchase' ? 'purchase bill' : 'payment voucher'}. Please select a supplier.`,
+          });
+        }
+      }
+    }
+
+    // 4. Items (for Sales & Purchase)
+    const processedItems: Array<{
+      itemId?: string;
+      name: string;
+      quantity: number;
+      unit?: string;
+      rate?: number;
+      discount?: number;
+      gstPercent?: number;
+    }> = [];
+
+    if (voucherType === 'sales' || voucherType === 'purchase') {
+      const rawItems = Array.isArray(parsed.items) ? parsed.items : [];
+      for (const item of rawItems) {
+        let matchedItem: Item | null = masters.items.find((i) => i.id === item.itemId) || null;
+        if (!matchedItem && item.name) {
+          matchedItem = findMatch(item.name, masters.items);
+        }
+
+        if (matchedItem) {
+          processedItems.push({
+            itemId: matchedItem.id,
+            name: matchedItem.name,
+            quantity: Number(item.quantity) || 1,
+            unit: matchedItem.unit || item.unit || 'PCS',
+            rate: item.rate !== undefined ? Number(item.rate) : matchedItem.rate,
+            discount: Number(item.discount) || 0,
+            gstPercent: item.gstPercent !== undefined ? Number(item.gstPercent) : matchedItem.gstPercent,
+          });
+        } else {
+          const spoken = item.name || 'Unknown item';
+          validationIssues.push({
+            field: 'item',
+            message: `Item "${spoken}" not found in Item master. Please add it to Items master first.`,
+            spokenValue: spoken,
+          });
+          processedItems.push({
+            itemId: undefined,
+            name: spoken,
+            quantity: Number(item.quantity) || 1,
+            unit: item.unit || 'PCS',
+            rate: Number(item.rate) || 0,
+            discount: Number(item.discount) || 0,
+            gstPercent: 18,
+          });
+        }
+      }
+
+      if (processedItems.length === 0) {
+        validationIssues.push({
+          field: 'item',
+          message: 'No items were detected in the voice command. Please speak item names and quantities.',
+        });
+      }
+    }
+
+    // Deduplicate validation issues by message
+    const uniqueIssues = validationIssues.filter(
+      (val, idx, arr) => arr.findIndex((t) => t.message === val.message) === idx
+    );
+
+    return {
+      voucherType,
+      companyId: matchedCompany?.id,
+      companyName: matchedCompany?.name || parsed.companyName,
+      customerId: matchedCustomer?.id,
+      customerName: matchedCustomer?.name || parsed.customerName,
+      supplierId: matchedSupplier?.id,
+      supplierName: matchedSupplier?.name || parsed.supplierName,
+      date: parsed.date || new Date().toISOString().split('T')[0],
+      items: processedItems,
+      amount: Number(parsed.amount) || 0,
+      referenceInvoiceNumber: parsed.referenceInvoiceNumber || undefined,
+      paymentMode: parsed.paymentMode || 'Cash',
+      referenceTransactionNumber: parsed.referenceTransactionNumber || undefined,
+      narration: parsed.narration || undefined,
+      notes: parsed.notes || undefined,
+      validationIssues: uniqueIssues,
+      rawTranscript: transcript,
+    };
+  }
+
+  /**
+   * Fast offline / heuristic fallback parser for voice vouchers
+   */
+  private static localHeuristicVoucherParser(
+    transcript: string,
+    voucherType: VoucherType,
+    masters: {
+      companies: Company[];
+      customers: Customer[];
+      suppliers: Supplier[];
+      items: Item[];
+    }
+  ): VoiceVoucherExtractionResult {
+    const text = transcript.toLowerCase();
+    const validationIssues: VoiceVoucherValidationIssue[] = [];
+
+    // 1. Company match
+    let matchedCompany = masters.companies.find((c) => text.includes(c.name.toLowerCase())) || masters.companies[0];
+    if (!matchedCompany) {
+      validationIssues.push({
+        field: 'company',
+        message: 'No company found in Company master. Please create a company first.',
+      });
+    }
+
+    // 2. Customer match (sales / receipt)
+    let matchedCustomer: Customer | undefined = undefined;
+    if (voucherType === 'sales' || voucherType === 'receipt') {
+      matchedCustomer = masters.customers.find((c) => text.includes(c.name.toLowerCase()));
+      if (!matchedCustomer) {
+        // Look for phrase "customer <name>" or "to <name>"
+        const match = text.match(/(?:customer|to|client)\s+([a-z0-9\s&.-]+?)(?:,|item|for|\bwith\b|\binvoice\b|$)/i);
+        const spoken = match ? match[1].trim() : 'Unrecognized Customer';
+        validationIssues.push({
+          field: 'customer',
+          message: `Customer "${spoken}" not found. Please add the customer in Customer master before creating this voucher.`,
+          spokenValue: spoken,
+        });
+      }
+    }
+
+    // 3. Supplier match (purchase / payment)
+    let matchedSupplier: Supplier | undefined = undefined;
+    if (voucherType === 'purchase' || voucherType === 'payment') {
+      matchedSupplier = masters.suppliers.find((s) => text.includes(s.name.toLowerCase()));
+      if (!matchedSupplier) {
+        const match = text.match(/(?:supplier|from|vendor)\s+([a-z0-9\s&.-]+?)(?:,|item|for|\bwith\b|\bpurchase\b|$)/i);
+        const spoken = match ? match[1].trim() : 'Unrecognized Supplier';
+        validationIssues.push({
+          field: 'supplier',
+          message: `Supplier "${spoken}" not found in Supplier master. Please add the supplier in Supplier master before creating this voucher.`,
+          spokenValue: spoken,
+        });
+      }
+    }
+
+    // 4. Items match (sales / purchase)
+    const items: Array<{
+      itemId?: string;
+      name: string;
+      quantity: number;
+      unit?: string;
+      rate?: number;
+      discount?: number;
+      gstPercent?: number;
+    }> = [];
+
+    if (voucherType === 'sales' || voucherType === 'purchase') {
+      masters.items.forEach((item) => {
+        if (text.includes(item.name.toLowerCase())) {
+          // Look for quantity preceding or following item name
+          const qtyRegex = new RegExp(`(?:(\\d+)\\s*(?:pieces?|nos?|pcs?|units?|kgs?)?\\s*)?${item.name.toLowerCase()}(?:\\s*(\\d+)\\s*(?:pieces?|nos?|pcs?|units?|kgs?)?)?`, 'i');
+          const m = text.match(qtyRegex);
+          let qty = 1;
+          if (m && (m[1] || m[2])) {
+            qty = parseInt(m[1] || m[2], 10) || 1;
+          }
+
+          // Look for rate e.g. "at 500" or "at rs 500" or "rate 500"
+          const rateRegex = /(?:at\s*(?:rs\.?|inr|₹)?\s*(\d+)|rate\s*(?:rs\.?|inr|₹)?\s*(\d+))/i;
+          const rm = text.match(rateRegex);
+          const rate = rm ? parseInt(rm[1] || rm[2], 10) : item.rate;
+
+          items.push({
+            itemId: item.id,
+            name: item.name,
+            quantity: qty,
+            unit: item.unit,
+            rate: rate,
+            discount: 0,
+            gstPercent: item.gstPercent,
+          });
+        }
+      });
+
+      if (items.length === 0) {
+        // Unknown item spoken
+        const itemSpokenMatch = text.match(/(?:item|items?)\s+([a-z0-9\s&.-]+?)(?:,|at|\bfor\b|\bpieces?\b|$)/i);
+        const spoken = itemSpokenMatch ? itemSpokenMatch[1].trim() : 'Spoken Item';
+        validationIssues.push({
+          field: 'item',
+          message: `Item "${spoken}" not found in Item master. Please add it to Items master first.`,
+          spokenValue: spoken,
+        });
+      }
+    }
+
+    // 5. Amount extraction (receipt / payment)
+    let extractedAmount = 0;
+    if (voucherType === 'receipt' || voucherType === 'payment') {
+      const amtMatch = text.match(/(?:(?:rs\.?|inr|₹|rupees?)\s*(\d+(?:,\d+)*(?:\.\d+)?)|(\d+(?:,\d+)*(?:\.\d+)?)\s*(?:rupees?|rs\.?|inr|₹))/i);
+      if (amtMatch) {
+        const numStr = (amtMatch[1] || amtMatch[2]).replace(/,/g, '');
+        extractedAmount = parseFloat(numStr) || 0;
+      }
+    }
+
+    // 6. Reference invoice number
+    let refInv = undefined;
+    const invMatch = text.match(/(?:against|invoice|bill|ref)\s*(?:no\.?|number)?\s*([a-z0-9-_/]+)/i);
+    if (invMatch) {
+      refInv = invMatch[1].toUpperCase();
+    }
+
+    // 7. Payment Mode
+    let mode: 'Cash' | 'Bank Transfer' | 'NEFT/RTGS' | 'Cheque' | 'UPI' = 'Cash';
+    if (/upi|google pay|gpay|phonepe|paytm/i.test(text)) mode = 'UPI';
+    else if (/cheque|check/i.test(text)) mode = 'Cheque';
+    else if (/neft|rtgs|imps/i.test(text)) mode = 'NEFT/RTGS';
+    else if (/bank|transfer|online|netbanking/i.test(text)) mode = 'Bank Transfer';
+
+    return {
+      voucherType,
+      companyId: matchedCompany?.id,
+      companyName: matchedCompany?.name,
+      customerId: matchedCustomer?.id,
+      customerName: matchedCustomer?.name,
+      supplierId: matchedSupplier?.id,
+      supplierName: matchedSupplier?.name,
+      date: new Date().toISOString().split('T')[0],
+      items,
+      amount: extractedAmount,
+      referenceInvoiceNumber: refInv,
+      paymentMode: mode,
+      validationIssues,
+      rawTranscript: transcript,
+    };
+  }
 }
+

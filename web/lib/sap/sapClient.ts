@@ -1,3 +1,5 @@
+import dns from 'dns';
+import { Agent, ProxyAgent } from 'undici';
 import { SapIntegrationConfig, SapMetadata } from '@/types/sap';
 import { SapConnectionTestResult, SapUploadExecutionResult } from './types';
 import { MetadataParser } from './metadataParser';
@@ -13,6 +15,36 @@ interface CsrfSession {
 const sessionCache = new Map<string, CsrfSession>();
 
 export class SapClient {
+  /**
+   * Builds an Undici dispatcher configured for enterprise SSL bypass and corporate proxy.
+   */
+  public static getDispatcher(config: SapIntegrationConfig): any {
+    const allowInsecure = config.allowInsecureSsl !== false; // Default true to allow enterprise / self-signed certs
+    const proxyUrl = config.proxyUrl || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || process.env.ALL_PROXY;
+
+    if (proxyUrl && proxyUrl.trim() !== '') {
+      try {
+        return new ProxyAgent({
+          uri: proxyUrl.trim(),
+          requestTls: {
+            rejectUnauthorized: !allowInsecure,
+          },
+        });
+      } catch (e) {
+        console.warn('[SAP Client] Failed to create ProxyAgent:', e);
+      }
+    }
+
+    if (allowInsecure) {
+      return new Agent({
+        connect: {
+          rejectUnauthorized: false,
+        },
+      });
+    }
+
+    return undefined;
+  }
   /**
    * Normalizes an SAP OData service URL to its base service root.
    */
@@ -70,6 +102,7 @@ export class SapClient {
   public static buildAuthHeaders(config: SapIntegrationConfig): Record<string, string> {
     const headers: Record<string, string> = {
       Accept: 'application/json',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 VoiceEPR/1.0',
     };
 
     const auth = config.auth;
@@ -97,7 +130,7 @@ export class SapClient {
     const metadataUrl = this.buildMetadataUrl(config);
     const { serviceRoot } = this.normalizeServiceUrl(config.serviceUrl);
 
-    // If Mock mode or Mock Fallback explicitly active with sandbox URL
+    // If explicit Mock mode
     const isExplicitMock = config.auth.authType === 'mock' || config.serviceUrl.includes('mock://');
 
     if (isExplicitMock) {
@@ -112,7 +145,10 @@ export class SapClient {
           isMockFallback: true,
           diagnostics: {
             dnsResolved: true,
+            resolvedIp: '127.0.0.1',
             networkReachable: true,
+            sslVerified: true,
+            sslBypassed: true,
             authValid: true,
             csrfSupported: true,
             detectedODataVersion: '2.0',
@@ -123,6 +159,30 @@ export class SapClient {
       };
     }
 
+    // Trace DNS beforehand
+    let hostname = '';
+    let parsedPort = 443;
+    try {
+      const u = new URL(metadataUrl);
+      hostname = u.hostname;
+      parsedPort = u.port ? parseInt(u.port, 10) : (u.protocol === 'http:' ? 80 : 443);
+    } catch (_) {}
+
+    let dnsResolved = false;
+    let resolvedIp: string | undefined = undefined;
+    if (hostname && hostname !== 'localhost' && !hostname.startsWith('127.')) {
+      try {
+        const lookupRes = await dns.promises.lookup(hostname);
+        dnsResolved = true;
+        resolvedIp = lookupRes.address;
+      } catch (_) {
+        dnsResolved = false;
+      }
+    } else {
+      dnsResolved = true;
+      resolvedIp = '127.0.0.1';
+    }
+
     // Attempt real HTTP request to SAP server
     const headers = this.buildAuthHeaders(config);
     headers['Accept'] = 'application/xml, text/xml, */*';
@@ -131,12 +191,19 @@ export class SapClient {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
+    const dispatcher = this.getDispatcher(config);
+
     try {
-      const res = await fetch(metadataUrl, {
+      const fetchOptions: any = {
         method: 'GET',
         headers,
         signal: controller.signal,
-      });
+      };
+      if (dispatcher) {
+        fetchOptions.dispatcher = dispatcher;
+      }
+
+      const res = await fetch(metadataUrl, fetchOptions);
       clearTimeout(timeoutId);
 
       const durationMs = Date.now() - startTime;
@@ -147,21 +214,18 @@ export class SapClient {
           errBody = await res.text();
         } catch (_) {}
 
-        // If unauthorized
         if (res.status === 401) {
           throw new Error(
             `Authentication failed (HTTP 401 Unauthorized). Please verify your SAP username and password or credentials.`
           );
         }
 
-        // If 403 Forbidden
         if (res.status === 403) {
           throw new Error(
-            `Access Forbidden (HTTP 403). The credentials may lack authorization for this OData service on SAP Gateway.`
+            `Access Forbidden (HTTP 403). The credentials lack authorization for service on SAP Gateway.`
           );
         }
 
-        // If 404 Not Found
         if (res.status === 404) {
           throw new Error(
             `Service not found (HTTP 404). Please verify that the SAP OData service URL is active in transaction /IWFND/MAINT_SERVICE.`
@@ -190,7 +254,10 @@ export class SapClient {
           isMockFallback: false,
           diagnostics: {
             dnsResolved: true,
+            resolvedIp,
             networkReachable: true,
+            sslVerified: true,
+            sslBypassed: config.allowInsecureSsl !== false,
             authValid: true,
             csrfSupported: true,
             detectedODataVersion: metadata.version,
@@ -203,47 +270,47 @@ export class SapClient {
       clearTimeout(timeoutId);
       const durationMs = Date.now() - startTime;
 
-      // Check if user has enabled fallback to mock sandbox or if host is a sandbox URL
-      if (config.useMockFallback || config.serviceUrl.includes('sandbox.api.sap.com')) {
-        console.warn(`[SAP Client] Live connection failed (${err.message}). Falling back to SAP Sandbox schema.`);
-        return {
-          metadata: MOCK_SAP_METADATA_PURCHASE_ORDER,
-          testResult: {
-            success: true,
-            message: `External SAP host unreachable (${err.message}). Loaded SAP S/4HANA Sandbox schema with ${MOCK_SAP_METADATA_PURCHASE_ORDER.entitySets.length} Entity Sets for live simulation.`,
-            statusCode: 200,
-            serviceRoot,
-            metadataUrl,
-            isMockFallback: true,
-            diagnostics: {
-              dnsResolved: false,
-              networkReachable: false,
-              authValid: false,
-              csrfSupported: true,
-              detectedODataVersion: '2.0',
-              latencyMs: durationMs,
-              errorType: 'NETWORK',
-            },
-            entitySetsCount: MOCK_SAP_METADATA_PURCHASE_ORDER.entitySets.length,
-          },
-        };
-      }
+      // Extract low-level root cause (Node.js undici fetch wraps errors in err.cause)
+      const rootCause = err.cause || err;
+      const rootCode = rootCause?.code || err.code || '';
+      const rootMsg = rootCause?.message || err.message || '';
+      const isAbort = err.name === 'AbortError' || rootCode === 'ABORT_ERR';
 
-      // Categorize diagnostic errors
-      let errorType: 'NETWORK' | 'AUTH' | 'CSRF' | 'PARSER' | 'TIMEOUT' | 'UNKNOWN' = 'UNKNOWN';
-      let friendlyMessage = err.message;
+      let errorType: 'DNS' | 'NETWORK' | 'SSL' | 'AUTH' | 'CSRF' | 'PARSER' | 'TIMEOUT' | 'UNKNOWN' = 'UNKNOWN';
+      let friendlyMessage = rootMsg || err.message;
 
-      if (err.name === 'AbortError' || err.message.includes('timeout')) {
+      if (!dnsResolved || rootCode === 'ENOTFOUND' || rootCode === 'EAI_AGAIN' || rootMsg.includes('ENOTFOUND') || rootMsg.includes('getaddrinfo')) {
+        errorType = 'DNS';
+        friendlyMessage = `DNS resolution failed for "${hostname || config.serviceUrl}" (${rootCode || 'ENOTFOUND'}). The SAP hostname could not be found. Please ensure your VPN is connected or configure corporate proxy/DNS.`;
+      } else if (
+        rootCode === 'UNABLE_TO_VERIFY_LEAF_SIGNATURE' ||
+        rootCode === 'SELF_SIGNED_CERT_IN_CHAIN' ||
+        rootCode === 'DEPTH_ZERO_SELF_SIGNED_CERT' ||
+        rootCode === 'CERT_HAS_EXPIRED' ||
+        rootCode === 'ERR_TLS_CERT_ALTNAME_INVALID' ||
+        rootMsg.includes('certificate') ||
+        rootMsg.includes('SSL') ||
+        rootMsg.includes('TLS')
+      ) {
+        errorType = 'SSL';
+        friendlyMessage = `SSL/TLS Certificate Verification Failed (${rootCode || 'SSL_ERROR'}): ${rootMsg}. Internal SAP gateways frequently use corporate or self-signed certificates. Please enable "Allow Enterprise / Self-Signed SSL Certificates" in Settings.`;
+      } else if (rootCode === 'ECONNREFUSED' || rootMsg.includes('ECONNREFUSED')) {
+        errorType = 'NETWORK';
+        friendlyMessage = `Connection refused by SAP server at ${hostname}:${parsedPort}. The host was reached, but the port is not accepting connections. Ensure SAP ICM / Web Dispatcher is active.`;
+      } else if (isAbort || rootCode === 'ETIMEDOUT' || rootMsg.includes('timeout')) {
         errorType = 'TIMEOUT';
-        friendlyMessage = `Connection timed out after ${timeoutMs / 1000}s. The SAP host may be behind a corporate VPN or firewall.`;
-      } else if (err.message.includes('ENOTFOUND') || err.message.includes('getaddrinfo')) {
-        errorType = 'NETWORK';
-        friendlyMessage = `DNS resolution failed for SAP host. Please check the hostname and ensure your VPN is active.`;
-      } else if (err.message.includes('ECONNREFUSED')) {
-        errorType = 'NETWORK';
-        friendlyMessage = `Connection refused by SAP server. Ensure the port is open and the SAP ICF node is activated.`;
-      } else if (err.message.includes('401')) {
+        friendlyMessage = `Connection timed out after ${timeoutMs / 1000}s while attempting to reach ${hostname}:${parsedPort}. Check if your VPN tunnel is active and firewall allows port ${parsedPort}.`;
+      } else if (rootMsg.includes('401') || err.message?.includes('401')) {
         errorType = 'AUTH';
+        friendlyMessage = 'Authentication failed (HTTP 401 Unauthorized). Please verify your SAP username and password or credentials.';
+      } else if (rootMsg.includes('403') || err.message?.includes('403')) {
+        errorType = 'AUTH';
+        friendlyMessage = 'Access Forbidden (HTTP 403). The credentials lack authorization for this service on SAP Gateway.';
+      } else if (rootMsg.includes('404') || err.message?.includes('404')) {
+        errorType = 'UNKNOWN';
+        friendlyMessage = 'Service not found (HTTP 404). Please verify that the SAP OData service URL is active.';
+      } else {
+        friendlyMessage = `SAP Connection Error (${rootCode || 'ERROR'}): ${rootMsg || err.message}`;
       }
 
       return {
@@ -260,11 +327,15 @@ export class SapClient {
           metadataUrl,
           isMockFallback: false,
           diagnostics: {
-            dnsResolved: !err.message.includes('ENOTFOUND'),
-            networkReachable: false,
-            authValid: !err.message.includes('401'),
+            dnsResolved,
+            resolvedIp,
+            networkReachable: dnsResolved && errorType !== 'DNS' && errorType !== 'TIMEOUT',
+            sslVerified: errorType !== 'SSL',
+            sslBypassed: config.allowInsecureSsl !== false,
+            authValid: errorType !== 'AUTH',
             latencyMs: durationMs,
             errorType,
+            rawErrorCode: rootCode || err.name,
           },
           entitySetsCount: 0,
         },
@@ -292,13 +363,23 @@ export class SapClient {
     headers['X-CSRF-Token'] = 'Fetch';
     headers['Accept'] = 'application/json';
 
-    const rootUrl = this.buildMetadataUrl(config); // Or serviceRoot
+    const rootUrl = this.buildMetadataUrl(config);
+    const dispatcher = this.getDispatcher(config);
+
+    const timeoutMs = config.timeoutMs || 60000;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      const res = await fetch(rootUrl, {
+      const fetchOpts: any = {
         method: 'GET',
         headers,
-      });
+        signal: controller.signal,
+      };
+      if (dispatcher) fetchOpts.dispatcher = dispatcher;
+
+      const res = await fetch(rootUrl, fetchOpts);
+      clearTimeout(timeoutId);
 
       const csrfToken = res.headers.get('x-csrf-token') || '';
       const setCookies = res.headers.getSetCookie ? res.headers.getSetCookie() : [];
@@ -312,6 +393,7 @@ export class SapClient {
       sessionCache.set(serviceRoot, session);
       return { token: session.token, cookies: session.cookies };
     } catch (err: any) {
+      clearTimeout(timeoutId);
       console.warn(`[SAP Client] CSRF token fetch encountered error: ${err.message}. Proceeding without token.`);
       return { token: '', cookies: [] };
     }
@@ -328,8 +410,8 @@ export class SapClient {
   ): Promise<SapUploadExecutionResult> {
     const startTime = Date.now();
 
-    // 1. If explicit mock or mock fallback
-    if (config.auth.authType === 'mock' || config.useMockFallback || config.serviceUrl.includes('mock://')) {
+    // 1. Explicit mock simulation mode
+    if (config.auth.authType === 'mock' || config.serviceUrl.includes('mock://')) {
       const randomDocNum = Math.floor(4500000000 + Math.random() * 99999999).toString();
       return {
         recordId,
@@ -368,17 +450,22 @@ export class SapClient {
       headers['Cookie'] = cookies.join('; ');
     }
 
-    const timeoutMs = config.timeoutMs || 30000;
+    const timeoutMs = config.timeoutMs || 60000;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
+    const dispatcher = this.getDispatcher(config);
+
     try {
-      const res = await fetch(targetUrl, {
+      const fetchOpts: any = {
         method: 'POST',
         headers,
         body: JSON.stringify(payload),
         signal: controller.signal,
-      });
+      };
+      if (dispatcher) fetchOpts.dispatcher = dispatcher;
+
+      const res = await fetch(targetUrl, fetchOpts);
       clearTimeout(timeoutId);
 
       const durationMs = Date.now() - startTime;

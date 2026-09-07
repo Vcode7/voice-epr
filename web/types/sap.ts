@@ -26,6 +26,8 @@ export interface SapIntegrationConfig {
   timeoutMs?: number;
   isActive: boolean;
   useMockFallback?: boolean; // If real endpoint is unreachable, fall back to mock sandbox
+  allowInsecureSsl?: boolean; // Allow enterprise / self-signed SSL certificates for intranet/VPN SAP gateways
+  proxyUrl?: string; // Optional HTTP/HTTPS proxy URL for corporate network routing
   createdAt: string;
   updatedAt: string;
 }

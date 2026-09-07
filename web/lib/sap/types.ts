@@ -7,12 +7,16 @@ export interface SapConnectionTestResult {
   isMockFallback?: boolean;
   diagnostics?: {
     dnsResolved?: boolean;
+    resolvedIp?: string;
     networkReachable?: boolean;
+    sslVerified?: boolean;
+    sslBypassed?: boolean;
     authValid?: boolean;
     csrfSupported?: boolean;
     detectedODataVersion?: '2.0' | '4.0';
     latencyMs?: number;
-    errorType?: 'NETWORK' | 'AUTH' | 'CSRF' | 'PARSER' | 'TIMEOUT' | 'UNKNOWN';
+    errorType?: 'DNS' | 'NETWORK' | 'SSL' | 'AUTH' | 'CSRF' | 'PARSER' | 'TIMEOUT' | 'UNKNOWN';
+    rawErrorCode?: string;
   };
   entitySetsCount?: number;
 }

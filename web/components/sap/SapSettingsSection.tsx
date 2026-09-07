@@ -42,7 +42,9 @@ export function SapSettingsSection({ onNotify }: SapSettingsSectionProps) {
     csrfEnabled: true,
     timeoutMs: 30000,
     isActive: true,
-    useMockFallback: true,
+    useMockFallback: false,
+    allowInsecureSsl: true,
+    proxyUrl: '',
     createdAt: '',
     updatedAt: '',
   });
@@ -124,6 +126,8 @@ export function SapSettingsSection({ onNotify }: SapSettingsSectionProps) {
       csrfEnabled: config.csrfEnabled,
       timeoutMs: config.timeoutMs,
       useMockFallback: config.useMockFallback,
+      allowInsecureSsl: config.allowInsecureSsl !== false,
+      proxyUrl: config.proxyUrl,
       auth: {
         ...config.auth,
         password: passwordInput || undefined,
@@ -172,6 +176,8 @@ export function SapSettingsSection({ onNotify }: SapSettingsSectionProps) {
 
     const updatePayload: Partial<SapIntegrationConfig> = {
       ...config,
+      allowInsecureSsl: config.allowInsecureSsl !== false,
+      proxyUrl: config.proxyUrl,
       auth: {
         ...config.auth,
         password: passwordInput || undefined,
@@ -461,7 +467,7 @@ export function SapSettingsSection({ onNotify }: SapSettingsSectionProps) {
             </div>
           )}
 
-          {/* Toggles (CSRF & VPN Fallback) */}
+          {/* Toggles (CSRF, SSL & VPN Fallback) */}
           <div className="flex flex-wrap items-center gap-6 pt-2 border-t border-cardBorder/60 text-xs">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -478,14 +484,68 @@ export function SapSettingsSection({ onNotify }: SapSettingsSectionProps) {
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
+                checked={config.allowInsecureSsl !== false}
+                onChange={(e) => setConfig({ ...config, allowInsecureSsl: e.target.checked })}
+                className="w-4 h-4 rounded text-emerald-500 focus:ring-0 cursor-pointer"
+              />
+              <span className="text-text font-medium">
+                Allow Enterprise / Self-Signed SSL Certificates (Recommended for VPN/Intranet SAP)
+              </span>
+            </label>
+
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
                 checked={config.useMockFallback}
                 onChange={(e) => setConfig({ ...config, useMockFallback: e.target.checked })}
                 className="w-4 h-4 rounded text-secondary focus:ring-0 cursor-pointer"
               />
               <span className="text-text font-medium">
-                Auto-Fallback to Sandbox Schema if VPN / Host is Unreachable
+                Fallback to Mock Schema if Live Endpoint Unavailable
               </span>
             </label>
+          </div>
+
+          {/* Optional Corporate Proxy */}
+          <div className="pt-2 border-t border-cardBorder/40">
+            <label className="block text-[10px] font-semibold uppercase text-textSubtle mb-1">
+              Corporate HTTP / HTTPS Proxy URL (Optional)
+            </label>
+            <input
+              type="text"
+              value={config.proxyUrl || ''}
+              onChange={(e) => setConfig({ ...config, proxyUrl: e.target.value })}
+              placeholder="e.g. http://proxy.corporate.local:8080 (leave blank for direct connection)"
+              className="w-full px-3 py-2 rounded-xl bg-background border border-cardBorder text-xs text-text focus:outline-none focus:border-primary font-mono"
+            />
+            <p className="text-[10px] text-textSubtle mt-1">
+              Specify if your corporate network requires routing through a proxy server to reach internal SAP gateways.
+            </p>
+          </div>
+
+          {/* Request Timeout (seconds) */}
+          <div className="pt-2 border-t border-cardBorder/40">
+            <label className="block text-[10px] font-semibold uppercase text-textSubtle mb-1">
+              SAP Request Timeout (Seconds)
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="number"
+                min="10"
+                max="300"
+                value={Math.round((config.timeoutMs || 60000) / 1000)}
+                onChange={(e) =>
+                  setConfig({
+                    ...config,
+                    timeoutMs: Math.max(10, parseInt(e.target.value, 10) || 60) * 1000,
+                  })
+                }
+                className="w-28 px-3 py-2 rounded-xl bg-background border border-cardBorder text-xs text-text focus:outline-none focus:border-primary font-mono"
+              />
+              <span className="text-[11px] text-textSubtle">
+                Default: 60s. Increase (e.g. 90s or 120s) if your SAP Gateway over VPN takes time to process records.
+              </span>
+            </div>
           </div>
         </div>
 
@@ -565,22 +625,55 @@ export function SapSettingsSection({ onNotify }: SapSettingsSectionProps) {
           </div>
 
           {testResult.diagnostics && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 text-[11px] text-textMuted border-t border-cardBorder/40">
-              <div>
-                <span className="text-textSubtle">Latency: </span>
-                <strong className="text-text">{testResult.diagnostics.latencyMs || 0}ms</strong>
+            <div className="space-y-2 pt-2 border-t border-cardBorder/40 text-[11px]">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-textMuted">
+                <div>
+                  <span className="text-textSubtle">DNS Resolution: </span>
+                  <strong className={testResult.diagnostics.dnsResolved ? 'text-emerald-400' : 'text-danger'}>
+                    {testResult.diagnostics.dnsResolved
+                      ? `Resolved ${testResult.diagnostics.resolvedIp ? `(${testResult.diagnostics.resolvedIp})` : 'OK'}`
+                      : 'Failed'}
+                  </strong>
+                </div>
+                <div>
+                  <span className="text-textSubtle">Port / Network: </span>
+                  <strong className={testResult.diagnostics.networkReachable ? 'text-emerald-400' : 'text-danger'}>
+                    {testResult.diagnostics.networkReachable ? 'Reachable' : 'Unreachable'}
+                  </strong>
+                </div>
+                <div>
+                  <span className="text-textSubtle">SSL Verification: </span>
+                  <strong className={testResult.diagnostics.sslBypassed ? 'text-blue-400' : (testResult.diagnostics.sslVerified ? 'text-emerald-400' : 'text-danger')}>
+                    {testResult.diagnostics.sslBypassed
+                      ? 'Bypassed (Self-Signed Allowed)'
+                      : (testResult.diagnostics.sslVerified ? 'Verified Valid' : 'Failed')}
+                  </strong>
+                </div>
+                <div>
+                  <span className="text-textSubtle">Latency: </span>
+                  <strong className="text-text">{testResult.diagnostics.latencyMs || 0}ms</strong>
+                </div>
               </div>
-              <div>
-                <span className="text-textSubtle">OData Version: </span>
-                <strong className="text-text">{testResult.diagnostics.detectedODataVersion || '2.0'}</strong>
-              </div>
-              <div>
-                <span className="text-textSubtle">CSRF Support: </span>
-                <strong className="text-text">{testResult.diagnostics.csrfSupported ? 'Yes' : 'No'}</strong>
-              </div>
-              <div>
-                <span className="text-textSubtle">Entity Sets: </span>
-                <strong className="text-text">{testResult.entitySetsCount || 0}</strong>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-textMuted pt-1 border-t border-cardBorder/20">
+                <div>
+                  <span className="text-textSubtle">OData Version: </span>
+                  <strong className="text-text">{testResult.diagnostics.detectedODataVersion || '2.0'}</strong>
+                </div>
+                <div>
+                  <span className="text-textSubtle">CSRF Support: </span>
+                  <strong className="text-text">{testResult.diagnostics.csrfSupported ? 'Yes' : 'No'}</strong>
+                </div>
+                <div>
+                  <span className="text-textSubtle">Entity Sets: </span>
+                  <strong className="text-text">{testResult.entitySetsCount || 0}</strong>
+                </div>
+                {testResult.diagnostics.rawErrorCode && (
+                  <div>
+                    <span className="text-textSubtle">Error Code: </span>
+                    <strong className="font-mono text-danger">{testResult.diagnostics.rawErrorCode}</strong>
+                  </div>
+                )}
               </div>
             </div>
           )}

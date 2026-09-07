@@ -23,3 +23,10 @@ node_modules
 .next/
 /.next
 web/.next
+
+# Ignore web/.next/
+web/.next/
+
+# Ignore web/dist/
+web/dist/
+dist/
