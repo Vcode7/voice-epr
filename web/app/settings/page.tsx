@@ -217,11 +217,11 @@ export default function SettingsPage() {
   };
 
   const handleSeedDemoData = async () => {
-    if (!confirm('This will seed sample transactions, GST invoices, and EPR records into your MongoDB database.')) return;
+    if (!confirm('This will seed sample transactions, GST invoices, and ERP records into your MongoDB database.')) return;
     try {
       const res = await fetch('/api/seed', { method: 'POST' });
       const data = await res.json();
-      alert(`Demo Data Seeded! Loaded ${data.stats?.transactionsCount || 7} transactions, ${data.stats?.receiptsCount || 2} receipts, and ${data.stats?.dataEntriesCount || 2} Voice EPR records.`);
+      alert(`Demo Data Seeded! Loaded ${data.stats?.transactionsCount || 7} transactions, ${data.stats?.receiptsCount || 2} receipts, and ${data.stats?.dataEntriesCount || 2} Voice ERP records.`);
     } catch (e) {
       alert('Failed to seed demo data.');
     }

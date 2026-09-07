@@ -160,12 +160,12 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Recent Voice EPR Data Entries */}
+        {/* Recent Voice ERP Data Entries */}
         <div className="bg-card border border-cardBorder rounded-2xl p-5 shadow-lg space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-bold text-text flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-dataColor" />
-              Recent Voice-to-Data EPR Logs
+              Recent Voice-to-Data ERP Logs
             </h2>
             <Link
               href="/history"
@@ -178,7 +178,7 @@ export default function HomePage() {
           <div className="space-y-2.5">
             {recentEntries.length === 0 ? (
               <div className="py-8 text-center text-xs text-textSubtle">
-                No voice EPR logs recorded yet. Switch mode to "Voice-to-Data" and dictate your machine or shift details!
+                No voice ERP logs recorded yet. Switch mode to "Voice-to-Data" and dictate your machine or shift details!
               </div>
             ) : (
               recentEntries.map((entry) => (

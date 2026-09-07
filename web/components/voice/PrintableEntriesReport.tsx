@@ -21,7 +21,7 @@ export function PrintableEntriesReport({ entries, settings }: PrintableEntriesRe
       <div className="border-b-2 border-slate-900 pb-4 mb-6 flex justify-between items-start">
         <div>
           <h1 className="text-2xl font-bold uppercase tracking-tight text-slate-900">
-            {settings?.businessName || 'Voice EPR Enterprise System'}
+            {settings?.businessName || 'Voice ERP Enterprise System'}
           </h1>
           {settings?.businessAddress && (
             <p className="text-xs text-slate-600 mt-1">{settings.businessAddress}</p>

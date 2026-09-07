@@ -6,8 +6,8 @@ import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { ThemeProvider } from '@/components/theme/ThemeProvider';
 
 export const metadata: Metadata = {
-  title: 'Voice EPR - Voice Finance & Production Intelligence',
-  description: 'AI-powered voice-first financial tracking, GST invoicing, and dynamic electronic production records with MongoDB Atlas.',
+  title: 'Voice ERP - Voice Finance & Production Intelligence',
+  description: 'AI-powered voice-first financial tracking, GST invoicing, and dynamic enterprise resource planning with MongoDB Atlas.',
 };
 
 export const viewport: Viewport = {

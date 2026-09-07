@@ -42,7 +42,7 @@ export function Sidebar() {
             </div>
             <div>
               <h1 className="font-bold text-lg text-text tracking-tight flex items-center gap-1.5">
-                Voice EPR
+                Voice ERP
               </h1>
               <p className="text-xs text-textMuted font-medium">Smart Voice Intelligence</p>
             </div>

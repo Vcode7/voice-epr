@@ -131,7 +131,7 @@ export default function HomeScreen() {
         {/* Header Bar */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.appTitle}>Voice EPR</Text>
+            <Text style={styles.appTitle}>Voice ERP</Text>
             <Text style={styles.appSubtitle}>Speak naturally. Extract structured data.</Text>
           </View>
 

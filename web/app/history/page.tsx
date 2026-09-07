@@ -179,7 +179,7 @@ export default function HistoryPage() {
                 : 'text-textMuted hover:text-text'
             }`}
           >
-            📋 Voice EPR ({filteredEntries.length})
+            📋 Voice ERP ({filteredEntries.length})
           </button>
         </div>
       </div>
@@ -395,7 +395,7 @@ export default function HistoryPage() {
           {/* Grouped Data Entries List */}
           {entryGroups.length === 0 ? (
             <div className="py-12 text-center text-xs text-textMuted bg-card rounded-2xl border border-cardBorder p-6">
-              No Voice EPR records match your filter.
+              No Voice ERP records match your filter.
             </div>
           ) : (
             entryGroups.map((group) => (

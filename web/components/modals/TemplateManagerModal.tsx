@@ -91,7 +91,7 @@ export function TemplateManagerModal({
                 Templates Manager
               </h2>
               <p className="text-[11px] sm:text-xs text-textMuted mt-0.5">
-                Select active template for voice EPR dictation.
+                Select active template for voice ERP dictation.
               </p>
             </div>
             <button

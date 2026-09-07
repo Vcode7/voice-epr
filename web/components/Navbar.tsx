@@ -30,7 +30,7 @@ export function Navbar() {
               <Mic className="w-4 h-4 text-white" />
             </div>
             <span className="font-bold text-sm text-text tracking-tight flex items-center gap-1">
-              Voice EPR
+              Voice ERP
             </span>
           </Link>
         </div>

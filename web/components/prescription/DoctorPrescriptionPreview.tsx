@@ -232,7 +232,7 @@ export function DoctorPrescriptionPreview({ prescription }: DoctorPrescriptionPr
           <div className="flex items-center space-x-2.5 text-neutral-500 text-[10px]">
             <QrCode className="w-8 h-8 text-neutral-700 shrink-0" />
             <div>
-              <div className="font-bold text-neutral-700">Voice EPR Prescription</div>
+              <div className="font-bold text-neutral-700">Voice ERP Prescription</div>
               <div>Electronically Generated Medical Record</div>
             </div>
           </div>

@@ -811,7 +811,7 @@ export class PdfGeneratorService {
         }
 
         <div class="footer">
-          Voice EPR - Electronic Production & Process Record | Generated on ${new Date().toLocaleString()}
+          Voice ERP - Enterprise Resource Planning & Process Record | Generated on ${new Date().toLocaleString()}
         </div>
       </body>
     </html>
