@@ -23,7 +23,7 @@ interface DoctorPrescriptionPreviewProps {
 
 export function DoctorPrescriptionPreview({ prescription }: DoctorPrescriptionPreviewProps) {
   const patientName = prescription.patientName || '—';
-  const age = prescription.age || '';
+  const age = [prescription.age, prescription.gender].filter(Boolean).join(' / ');
   const phone = prescription.phone || '';
   const email = prescription.email || '';
   const date = prescription.date || '';

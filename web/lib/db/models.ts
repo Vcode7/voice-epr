@@ -1014,7 +1014,7 @@ export const dbPrescriptions = {
       phone: data.phone || '',
       email: data.email || '',
       date: data.date || new Date().toISOString().split('T')[0],
-      doctorName: data.doctorName || 'Dr. Physician',
+      doctorName: data.doctorName || '',
       doctorSpecialty: data.doctorSpecialty || '',
       doctorRegNo: data.doctorRegNo || '',
       clinicDetails: data.clinicDetails || '',

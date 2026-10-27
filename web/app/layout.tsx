@@ -1,8 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
-import { Sidebar } from '@/components/Sidebar';
-import { Navbar } from '@/components/Navbar';
-import { MobileBottomNav } from '@/components/MobileBottomNav';
+import { AppShell } from '@/components/AppShell';
 import { ThemeProvider } from '@/components/theme/ThemeProvider';
 
 export const metadata: Metadata = {
@@ -50,14 +48,7 @@ export default function RootLayout({
       </head>
       <body className="bg-background text-text flex min-h-screen antialiased">
         <ThemeProvider>
-          <Sidebar />
-          <div className="flex-1 flex flex-col min-w-0 min-h-screen">
-            <Navbar />
-            <main className="flex-1 p-3.5 sm:p-6 md:p-8 pb-24 md:pb-8 max-w-7xl w-full mx-auto">
-              {children}
-            </main>
-            <MobileBottomNav />
-          </div>
+          <AppShell>{children}</AppShell>
         </ThemeProvider>
       </body>
     </html>

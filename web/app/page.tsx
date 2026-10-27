@@ -1,256 +1,81 @@
-'use client';
-
-import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import {
-  ArrowRight,
-  TrendingDown,
-  TrendingUp,
-  CreditCard,
-  Calendar,
-  FileSpreadsheet,
-  Layers,
-  Sparkles,
-} from 'lucide-react';
-import { VoiceRecordingStudio } from '@/components/voice/VoiceRecordingStudio';
-import { Transaction, DataEntryRecord, DataTemplate } from '@/types';
-import { DEFAULT_MONITORING_DETAILS_TEMPLATE } from '@/lib/constants';
-import { formatCurrency } from '@/lib/utils/currencyFormatter';
-import { formatDateDisplay } from '@/lib/utils/dateUtils';
-import { TransactionConfirmModal } from '@/components/modals/TransactionConfirmModal';
-import { DataEntryEditModal } from '@/components/modals/DataEntryEditModal';
+import { Mic, ArrowRight, Settings } from 'lucide-react';
+import { ThemeToggle } from '@/components/theme/ThemeToggle';
+import { VOICE_APPS } from '@/lib/apps';
 
 export default function HomePage() {
-  const [activeTemplate, setActiveTemplate] = useState<DataTemplate>(DEFAULT_MONITORING_DETAILS_TEMPLATE);
-  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
-  const [recentEntries, setRecentEntries] = useState<DataEntryRecord[]>([]);
-  const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
-  const [selectedEntry, setSelectedEntry] = useState<DataEntryRecord | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const fetchData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const [txRes, entryRes, tmplRes] = await Promise.all([
-        fetch('/api/transactions'),
-        fetch('/api/data-entries'),
-        fetch('/api/templates'),
-      ]);
-
-      const txs = await txRes.json();
-      const entries = await entryRes.json();
-      const tmpls = await tmplRes.json();
-
-      if (Array.isArray(txs)) setRecentTransactions(txs.slice(0, 5));
-      if (Array.isArray(entries)) setRecentEntries(entries.slice(0, 5));
-      if (Array.isArray(tmpls) && tmpls.length > 0) {
-        setActiveTemplate(tmpls[0]);
-      }
-    } catch (e) {
-      console.error('Failed to fetch dashboard data:', e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
-      {/* Header Banner */}
-      <div>
-        <h1 className="text-2xl font-bold text-text tracking-tight flex items-center gap-2">
-          <span>Voice Studio & Dashboard</span>
-          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-secondary/15 text-secondary border border-secondary/30">
-            Atlas Synced
-          </span>
-        </h1>
-        <p className="text-xs text-textMuted mt-1">
-          Speak your expenses, invoices, and industrial machine logs in natural voice.
-        </p>
-      </div>
-
-      {/* Main Voice Recording Studio */}
-      <VoiceRecordingStudio
-        activeTemplate={activeTemplate}
-        onSelectActiveTemplate={setActiveTemplate}
-        onRefreshData={fetchData}
-      />
-
-      {/* Recents Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Transactions */}
-        <div className="bg-card border border-cardBorder rounded-2xl p-5 shadow-lg space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold text-text flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-primary" />
-              Recent Voice Transactions
-            </h2>
-            <Link
-              href="/history"
-              className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
-            >
-              View All <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
+    <div className="min-h-screen flex flex-col">
+      <header className="px-4 sm:px-8 h-16 flex items-center justify-between max-w-6xl w-full mx-auto">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-primaryDark to-primary flex items-center justify-center shadow-lg shadow-primary/20">
+            <Mic className="w-5 h-5 text-white" />
           </div>
-
-          <div className="space-y-2.5">
-            {recentTransactions.length === 0 ? (
-              <div className="py-8 text-center text-xs text-textSubtle">
-                No transactions recorded yet. Tap the microphone above to speak an expense or income!
-              </div>
-            ) : (
-              recentTransactions.map((tx) => (
-                <div
-                  key={tx.id}
-                  onClick={() => setSelectedTx(tx)}
-                  className="p-3.5 rounded-xl bg-surface/60 hover:bg-surface border border-cardBorder hover:border-primary/40 transition flex items-center justify-between cursor-pointer"
-                >
-                  <div className="flex items-center space-x-3">
-                    <div
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-                        tx.transactionType === 'income'
-                          ? 'bg-secondary/15 text-secondary'
-                          : 'bg-rose-500/15 text-rose-400'
-                      }`}
-                    >
-                      {tx.transactionType === 'income' ? (
-                        <TrendingUp className="w-4 h-4" />
-                      ) : (
-                        <TrendingDown className="w-4 h-4" />
-                      )}
-                    </div>
-                    <div>
-                      <h3 className="text-xs font-bold text-text">
-                        {tx.merchant || tx.category || 'Expense'}
-                      </h3>
-                      <div className="flex items-center gap-2 text-[11px] text-textMuted mt-0.5">
-                        <span>{tx.category || 'Other'}</span>
-                        {tx.paymentMethod && (
-                          <>
-                            <span>•</span>
-                            <span className="flex items-center gap-1">
-                              <CreditCard className="w-3 h-3 text-textSubtle" />
-                              {tx.paymentMethod}
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="text-right">
-                    <div
-                      className={`text-xs font-bold ${
-                        tx.transactionType === 'income' ? 'text-secondary' : 'text-text'
-                      }`}
-                    >
-                      {tx.transactionType === 'income' ? '+' : '-'}
-                      {formatCurrency(tx.amount)}
-                    </div>
-                    <div className="text-[10px] text-textSubtle mt-0.5">
-                      {formatDateDisplay(tx.date)}
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
+          <div>
+            <h1 className="font-bold text-lg text-text tracking-tight leading-none">Voice ERP</h1>
+            <p className="text-xs text-textMuted mt-1">Smart Voice Intelligence</p>
           </div>
         </div>
 
-        {/* Recent Voice ERP Data Entries */}
-        <div className="bg-card border border-cardBorder rounded-2xl p-5 shadow-lg space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold text-text flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-dataColor" />
-              Recent Voice-to-Data ERP Logs
-            </h2>
-            <Link
-              href="/history"
-              className="text-xs font-semibold text-dataColor hover:underline flex items-center gap-1"
-            >
-              View All <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-
-          <div className="space-y-2.5">
-            {recentEntries.length === 0 ? (
-              <div className="py-8 text-center text-xs text-textSubtle">
-                No voice ERP logs recorded yet. Switch mode to "Voice-to-Data" and dictate your machine or shift details!
-              </div>
-            ) : (
-              recentEntries.map((entry) => (
-                <div
-                  key={entry.id}
-                  onClick={() => setSelectedEntry(entry)}
-                  className="p-3.5 rounded-xl bg-surface/60 hover:bg-surface border border-cardBorder hover:border-primary/40 transition flex items-center justify-between cursor-pointer"
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="w-9 h-9 rounded-xl bg-cyan-500/15 text-cyan-400 flex items-center justify-center">
-                      <FileSpreadsheet className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h3 className="text-xs font-bold text-text">
-                        {entry.title || entry.templateName || 'Data Record'}
-                      </h3>
-                      <p className="text-[11px] text-textMuted mt-0.5">
-                        {entry.isFlexible
-                          ? `Flexible (${entry.flexibleFields?.length || Object.keys(entry.fieldValues || {}).length} fields)`
-                          : `Template: ${entry.templateName}`}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="text-right">
-                    <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-surface text-dataColor border border-dataColor/30 font-medium">
-                      {entry.tableRows?.length ? `${entry.tableRows.length} rows` : 'Fields only'}
-                    </span>
-                    <div className="text-[10px] text-textSubtle mt-1">
-                      {formatDateDisplay(entry.date)}
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/settings"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-surface hover:bg-surfaceMuted border border-cardBorder text-text text-xs font-semibold transition"
+          >
+            <Settings className="w-4 h-4 text-textSubtle" />
+            <span className="hidden sm:inline">Settings</span>
+          </Link>
+          <ThemeToggle />
         </div>
-      </div>
+      </header>
 
-      {/* Modals for Detail / Editing from Dashboard */}
-      {selectedTx && (
-        <TransactionConfirmModal
-          extractedData={{
-            intent: selectedTx.transactionType,
-            amount: selectedTx.amount,
-            merchant: selectedTx.merchant,
-            category: selectedTx.category,
-            payment_method: selectedTx.paymentMethod,
-            transaction_type: selectedTx.transactionType,
-            description: selectedTx.description,
-            date: selectedTx.date,
-            raw_transcript: selectedTx.transcript || undefined,
-          }}
-          onClose={() => setSelectedTx(null)}
-          onSaved={() => {
-            setSelectedTx(null);
-            fetchData();
-          }}
-        />
-      )}
+      <main className="flex-1 px-4 sm:px-8 pb-12 max-w-6xl w-full mx-auto flex flex-col justify-center">
+        <div className="py-8 sm:py-12 max-w-2xl">
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-text tracking-tight">
+            What would you like to do?
+          </h2>
+          <p className="text-sm sm:text-base text-textMuted mt-3">
+            Pick an app. Each one works on its own — you can come back here any time from the Home
+            button.
+          </p>
+        </div>
 
-      {selectedEntry && (
-        <DataEntryEditModal
-          existingRecord={selectedEntry}
-          template={activeTemplate}
-          onClose={() => setSelectedEntry(null)}
-          onSaved={() => {
-            setSelectedEntry(null);
-            fetchData();
-          }}
-        />
-      )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+          {VOICE_APPS.map((app) => {
+            const Icon = app.icon;
+            return (
+              <Link
+                key={app.id}
+                href={app.href}
+                className="group relative overflow-hidden bg-card border border-cardBorder hover:border-primary/50 rounded-3xl p-6 sm:p-7 shadow-lg hover:shadow-2xl hover:-translate-y-0.5 transition-all duration-200 flex flex-col gap-5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                <div
+                  className={`absolute -top-16 -right-16 w-48 h-48 rounded-full bg-gradient-to-br ${app.gradient} opacity-10 group-hover:opacity-20 blur-2xl transition-opacity`}
+                />
+
+                <div
+                  className={`relative w-14 h-14 rounded-2xl bg-gradient-to-tr ${app.gradient} flex items-center justify-center shadow-lg`}
+                >
+                  <Icon className="w-7 h-7 text-white" />
+                </div>
+
+                <div className="relative flex-1">
+                  <div className={`text-[11px] font-bold uppercase tracking-wider ${app.accent}`}>
+                    {app.tagline}
+                  </div>
+                  <h3 className="text-xl font-bold text-text mt-1 tracking-tight">{app.name}</h3>
+                  <p className="text-sm text-textMuted mt-2 leading-relaxed">{app.description}</p>
+                </div>
+
+                <div className="relative flex items-center gap-1.5 text-sm font-semibold text-primary">
+                  <span>Open</span>
+                  <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </main>
     </div>
   );
 }

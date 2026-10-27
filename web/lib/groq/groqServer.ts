@@ -1554,14 +1554,17 @@ Return ONLY a valid raw JSON object matching:
         if (!Array.isArray(parsed.medicines) || parsed.medicines.length === 0) {
           parsed.medicines = [];
         } else {
-          parsed.medicines = parsed.medicines.map((m: any) => ({
-            name: m.name || m.medicine_name || 'Prescribed Medicine',
-            dosage: m.dosage || m.dose || '1 dose',
-            timing: (m.timing && String(m.timing).toUpperCase().includes('BF')) ? 'BF' : 'AF',
-            frequency: m.frequency || m.instructions || '1-0-1',
-            duration: m.duration || '5 days',
-            instructions: m.instructions || (m.timing === 'BF' ? 'Before food' : 'After food'),
-          }));
+          // Never invent clinical values: anything the doctor did not say stays blank for review.
+          parsed.medicines = parsed.medicines
+            .map((m: any) => ({
+              name: String(m.name || m.medicine_name || '').trim(),
+              dosage: String(m.dosage || m.dose || '').trim(),
+              timing: m.timing && String(m.timing).toUpperCase().includes('BF') ? 'BF' : 'AF',
+              frequency: String(m.frequency || '').trim(),
+              duration: String(m.duration || '').trim(),
+              instructions: String(m.instructions || '').trim(),
+            }))
+            .filter((m: any) => m.name);
         }
 
         return parsed;
@@ -1628,6 +1631,11 @@ Return ONLY a valid raw JSON object matching:
     const clinicMatch = text.match(/(?:at|clinic|hospital|center)\s+([A-Z][a-zA-Z\s]+(?:Hospital|Clinic|Care|Healthcare|Center|Polyclinic))/i);
     if (clinicMatch) {
       clinicDetails = clinicMatch[0].trim().replace(/^(?:at|in)\s+/i, '');
+    } else {
+      const namedClinic = text.match(
+        /\b((?:[A-Z][\w&'.-]*\s+)+(?:Hospital|Clinic|Healthcare|Polyclinic|Health Centre|Health Center|Medical Centre|Medical Center))\b/
+      );
+      if (namedClinic) clinicDetails = namedClinic[1].trim();
     }
 
     // 8. Diagnosis
@@ -1637,7 +1645,38 @@ Return ONLY a valid raw JSON object matching:
       diagnosis = diagMatch[1].trim();
     }
 
-    // 9. Medicines detection (split by medicine markers, commas, or "and")
+    // 9. Medicines: locate known medicine names, then read dosage / frequency / duration /
+    // timing only from the text that follows each name. Nothing is invented.
+    const commonMeds = [
+      'paracetamol', 'dolo', 'augmentin', 'amoxicillin', 'azithromycin', 'pantoprazole', 'pan-d', 'pan d',
+      'ascoril', 'cetirizine', 'allegra', 'montair-lc', 'ibuprofen', 'combiflam', 'metformin', 'telmisartan',
+      'atorvastatin', 'ciprofloxacin', 'calpol', 'crocin', 'omeprazole', 'rabeprazole', 'gelusil', 'digene',
+    ];
+    const medRegex = new RegExp(
+      String.raw`\b(?:${commonMeds.map((m) => m.replace(/[-\s]/g, '[-\\s]?')).join('|')})` +
+        String.raw`(?:\s+(?:\d+(?:\.\d+)?(?:\s*(?:mg|ml|mcg|g)\b)?(?!\s*-\s*\d)|duo|ls|d|forte|plus|syrup|tablet|tab|capsule|cap)\b)*`,
+      'gi'
+    );
+
+    const mentions: Array<{ name: string; start: number; end: number }> = [];
+    let mm: RegExpExecArray | null;
+    while ((mm = medRegex.exec(text)) !== null) {
+      if (mm[0].length === 0) {
+        medRegex.lastIndex++;
+        continue;
+      }
+      mentions.push({ name: mm[0].trim(), start: mm.index, end: mm.index + mm[0].length });
+    }
+
+    const FREQ_WORDS: Array<[RegExp, string]> = [
+      [/\b(?:four times|4 times|qid)\b/i, '1-1-1-1'],
+      [/\b(?:thrice|three times|3 times|tds|tid)\b/i, '1-1-1'],
+      [/\b(?:twice|two times|2 times|bd|bid)\b/i, '1-0-1'],
+      [/\b(?:once|one time|1 time|od)\b/i, '1-0-0'],
+      [/\b(?:at night|bedtime|night)\b/i, '0-0-1'],
+      [/\b(?:sos|as needed|if needed|when required)\b/i, 'SOS'],
+    ];
+
     const medicines: Array<{
       name: string;
       dosage: string;
@@ -1645,41 +1684,40 @@ Return ONLY a valid raw JSON object matching:
       frequency: string;
       duration: string;
       instructions: string;
-    }> = [];
+    }> = mentions.map((mention, i) => {
+      const nextStart = i + 1 < mentions.length ? mentions[i + 1].start : text.length;
+      const segment = text.slice(mention.end, nextStart);
 
-    const commonMeds = [
-      'paracetamol', 'dolo', 'augmentin', 'amoxicillin', 'azithromycin', 'pantoprazole', 'pan-d', 'pan d',
-      'ascoril', 'cetirizine', 'allegra', 'montair-lc', 'ibuprofen', 'combiflam', 'metformin', 'telmisartan',
-      'atorvastatin', 'ciprofloxacin', 'calpol', 'crocin', 'omeprazole', 'rabeprazole', 'gelusil', 'digene'
-    ];
+      const dosageMatch =
+        mention.name.match(/\b\d+(?:\.\d+)?\s*(?:mg|ml|mcg|g)\b/i) ||
+        segment.match(/\b\d+(?:\.\d+)?\s*(?:mg|ml|mcg|g)\b/i) ||
+        segment.match(/\b\d+\s*(?:tablets?|tabs?|capsules?|caps?)\b/i);
 
-    commonMeds.forEach((med) => {
-      const regex = new RegExp(`\\b(${med}[\\w\\s\\d-]*?)(?:\\s+(?:tablet|capsule|syrup|mg|ml))?\\b`, 'i');
-      const match = text.match(regex);
-      if (match) {
-        const medName = match[0].trim();
-        const isBF = /before (?:food|meals?|breakfast)|empty stomach/i.test(text) && med.includes('pan');
-        medicines.push({
-          name: medName.charAt(0).toUpperCase() + medName.slice(1),
-          dosage: '1 Tablet / 500mg',
-          timing: isBF ? 'BF' : 'AF',
-          frequency: '1-0-1',
-          duration: '5 days',
-          instructions: isBF ? 'Before food empty stomach' : 'After meals with water',
-        });
+      let frequency = '';
+      const patternFreq = segment.match(/\b\d(?:\.5)?\s*-\s*\d(?:\.5)?\s*-\s*\d(?:\.5)?\b/);
+      if (patternFreq) {
+        frequency = patternFreq[0].replace(/\s+/g, '');
+      } else {
+        const hit = FREQ_WORDS.find(([re]) => re.test(segment));
+        if (hit) frequency = hit[1];
       }
-    });
 
-    if (medicines.length === 0) {
-      medicines.push({
-        name: 'Paracetamol 650mg',
-        dosage: '650 mg',
-        timing: 'AF',
-        frequency: '1-0-1',
-        duration: '5 days',
-        instructions: 'After food',
-      });
-    }
+      const durationMatch = segment.match(/\b(?:for\s+)?(\d+)\s*(day|week|month)s?\b/i);
+      const duration = durationMatch
+        ? `${durationMatch[1]} ${durationMatch[2].toLowerCase()}${durationMatch[1] === '1' ? '' : 's'}`
+        : '';
+
+      const isBF = /before\s+(?:food|meals?|breakfast|lunch|dinner)|empty stomach/i.test(segment);
+
+      return {
+        name: mention.name.charAt(0).toUpperCase() + mention.name.slice(1),
+        dosage: dosageMatch ? dosageMatch[0].trim() : '',
+        timing: isBF ? 'BF' : 'AF',
+        frequency,
+        duration,
+        instructions: '',
+      };
+    });
 
     return {
       patient_name: patientName,
@@ -1691,7 +1729,7 @@ Return ONLY a valid raw JSON object matching:
       doctor_name: doctorName,
       clinic_details: clinicDetails,
       diagnosis: diagnosis,
-      notes: 'Drink plenty of water and complete the prescribed dosage.',
+      notes: null,
       medicines,
       raw_transcript: transcript,
     };
