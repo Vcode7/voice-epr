@@ -8,7 +8,12 @@ import { getTodayString, normalizeDateToDDMMYYYY } from '@/lib/utils/dateUtils';
 import { buildPrescriptionText } from '@/lib/utils/prescriptionText';
 import { DoctorPrescriptionPreview } from '@/components/prescription/DoctorPrescriptionPreview';
 import { PrescriptionActiveView } from '@/components/prescription/PrescriptionActiveView';
-import { PrescriptionRecordingPanel } from '@/components/prescription/PrescriptionRecordingPanel';
+import {
+  PrescriptionRecordingPanel,
+  type ProcessingStage,
+  type ExtractionSummary,
+} from '@/components/prescription/PrescriptionRecordingPanel';
+import { normalizeFrequency } from '@/lib/utils/prescriptionParser';
 import { PrescriptionHistory } from '@/components/prescription/PrescriptionHistory';
 import { WhatsAppModal } from '@/components/prescription/WhatsAppModal';
 
@@ -21,12 +26,6 @@ const blankPrescription = (): Partial<DoctorPrescription> => ({
   phone: '',
   email: '',
   date: '',
-  doctorName: '',
-  doctorSpecialty: '',
-  doctorRegNo: '',
-  clinicDetails: '',
-  clinicAddress: '',
-  clinicPhone: '',
   diagnosis: '',
   notes: '',
   medicines: [],
@@ -47,6 +46,8 @@ export default function DoctorPrescriptionPage() {
   const [processingStatus, setProcessingStatus] = useState('');
   const [lastTranscript, setLastTranscript] = useState<string | null>(null);
   const [extractError, setExtractError] = useState<string | null>(null);
+  const [processingStage, setProcessingStage] = useState<ProcessingStage>(null);
+  const [lastExtraction, setLastExtraction] = useState<ExtractionSummary | null>(null);
 
   // Actions
   const [notice, setNotice] = useState<Notice | null>(null);
@@ -85,7 +86,6 @@ export default function DoctorPrescriptionPage() {
     prescription.patientName ||
       prescription.phone ||
       prescription.email ||
-      prescription.doctorName ||
       prescription.diagnosis ||
       prescription.notes ||
       (prescription.medicines || []).length > 0
@@ -95,7 +95,9 @@ export default function DoctorPrescriptionPage() {
 
   /** Sends text to the extraction API and merges the result into the form. Throws on failure. */
   const extractFromText = async (text: string) => {
+    setProcessingStage('extracting');
     setProcessingStatus('Reading the prescription details…');
+    setLastExtraction(null);
 
     const res = await fetch('/api/groq/prescription', {
       method: 'POST',
@@ -115,10 +117,32 @@ export default function DoctorPrescriptionPage() {
         name: m.name || '',
         dosage: m.dosage || '',
         timing: m.timing === 'BF' ? 'BF' : 'AF',
-        frequency: m.frequency || '',
+        frequency: normalizeFrequency(m.frequency || ''),
         duration: m.duration || '',
         instructions: m.instructions || '',
       }));
+
+    setLastExtraction({
+      patient: [
+        { label: 'Patient name', value: data.patient_name },
+        { label: 'Age', value: data.age },
+        { label: 'Gender', value: data.gender },
+        { label: 'Phone', value: data.phone },
+        { label: 'Email', value: data.email },
+        { label: 'Diagnosis', value: data.diagnosis },
+        { label: 'Advice', value: data.notes },
+      ]
+        .map((f) => ({ label: f.label, value: f.value ? String(f.value) : '' }))
+        .filter((f) => f.value),
+      medicines: incoming.map((m) => ({
+        'Medicine name': m.name,
+        Dosage: m.dosage,
+        Frequency: m.frequency,
+        Duration: m.duration,
+        Timing: m.timing === 'BF' ? 'Before food' : 'After food',
+        Instructions: m.instructions || '',
+      })),
+    });
 
     // The API always returns a date (today when none was spoken); only trust it when it differs.
     const spokenDate =
@@ -139,9 +163,6 @@ export default function DoctorPrescriptionPage() {
         phone: data.phone || prev.phone || '',
         email: data.email || prev.email || '',
         date: spokenDate || prev.date || getTodayString(),
-        doctorName: data.doctor_name || prev.doctorName || '',
-        doctorSpecialty: data.doctor_specialty || prev.doctorSpecialty || '',
-        clinicDetails: data.clinic_details || prev.clinicDetails || '',
         diagnosis: data.diagnosis || prev.diagnosis || '',
         notes: data.notes || prev.notes || '',
         medicines: [...existing, ...added],
@@ -169,6 +190,7 @@ export default function DoctorPrescriptionPage() {
     } finally {
       setIsProcessing(false);
       setProcessingStatus('');
+      setProcessingStage(null);
     }
   };
 
@@ -178,6 +200,7 @@ export default function DoctorPrescriptionPage() {
     recorder.setErrorMessage(null);
     try {
       recorder.setState('Transcribing');
+      setProcessingStage('transcribing');
       setProcessingStatus('Transcribing speech…');
 
       const body = new FormData();
@@ -203,6 +226,7 @@ export default function DoctorPrescriptionPage() {
     } finally {
       setIsProcessing(false);
       setProcessingStatus('');
+      setProcessingStage(null);
     }
   };
 
@@ -251,6 +275,7 @@ export default function DoctorPrescriptionPage() {
     if (hasContent && !confirm('Start a new prescription? Anything not saved will be lost.')) return;
     setPrescription({ ...blankPrescription(), date: getTodayString() });
     setLastTranscript(null);
+    setLastExtraction(null);
     setExtractError(null);
     recorder.resetRecorder();
     setNotice(null);
@@ -432,6 +457,8 @@ export default function DoctorPrescriptionPage() {
               volumeLevel={recorder.volumeLevel}
               isProcessing={isProcessing}
               processingStatus={processingStatus}
+              processingStage={processingStage}
+              extraction={lastExtraction}
               errorMessage={extractError || recorder.errorMessage}
               lastTranscript={lastTranscript}
               onMicPress={handleMicPress}

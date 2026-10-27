@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Mic,
   Square,
@@ -11,9 +11,21 @@ import {
   Check,
   FileText,
   Upload,
+  CheckCircle2,
+  User,
+  Pill,
 } from 'lucide-react';
 import { RecordingState } from '@/types';
 import { AudioVisualizer } from '@/components/voice/AudioVisualizer';
+
+export type ProcessingStage = 'transcribing' | 'extracting' | null;
+
+export interface ExtractionSummary {
+  /** Patient-level fields that were found (empty ones are left out). */
+  patient: Array<{ label: string; value: string }>;
+  /** One record per medicine, keyed by column name. */
+  medicines: Array<Record<string, string>>;
+}
 
 interface PrescriptionRecordingPanelProps {
   recordingState: RecordingState;
@@ -21,12 +33,33 @@ interface PrescriptionRecordingPanelProps {
   volumeLevel: number;
   isProcessing: boolean;
   processingStatus: string;
+  processingStage: ProcessingStage;
+  extraction: ExtractionSummary | null;
   errorMessage: string | null;
   lastTranscript: string | null;
   onMicPress: () => void;
   onUploadAudio: (file: File) => void;
   onExtractText: (text: string) => void;
 }
+
+/** Field name shown to the user, and the word to say / type so the right field is filled. */
+const PATIENT_FIELDS = [
+  { label: 'Patient name', say: 'patient name' },
+  { label: 'Age', say: 'age' },
+  { label: 'Gender', say: 'gender' },
+  { label: 'Phone', say: 'phone' },
+  { label: 'Diagnosis', say: 'diagnosis' },
+];
+
+/** Same column names as the medicine table on the right. */
+const MEDICINE_FIELDS: Array<{ label: string; say: string; hint?: string }> = [
+  { label: 'Medicine name', say: 'medicine' },
+  { label: 'Dosage', say: 'dosage' },
+  { label: 'Frequency', say: 'frequency', hint: 'digits, e.g. 1 0 1' },
+  { label: 'Duration', say: 'duration' },
+  { label: 'Timing', say: 'timing', hint: 'before / after food' },
+  { label: 'Instructions', say: 'instructions' },
+];
 
 const AUDIO_FILE_PATTERN = /\.(mp3|wav|m4a|webm|ogg|aac|flac|mp4)$/i;
 
@@ -36,12 +69,155 @@ const formatTimer = (seconds: number) => {
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 };
 
+function FieldChip({ label, say, hint }: { label: string; say: string; hint?: string }) {
+  return (
+    <div className="px-2.5 py-1.5 rounded-lg bg-background border border-cardBorder text-[11px] leading-tight">
+      <div className="font-bold text-text">{label}</div>
+      <div className="text-textMuted">
+        say &ldquo;<span className="text-teal-600 dark:text-teal-400 font-semibold">{say}</span>&rdquo;
+        {hint && <span className="text-textSubtle"> · {hint}</span>}
+      </div>
+    </div>
+  );
+}
+
+/** Which fields to say (or type), with the exact word that fills each one. */
+function FieldGuide({ verb }: { verb: 'Say' | 'Type' }) {
+  return (
+    <div className="rounded-xl bg-surface/60 border border-cardBorder p-3.5 space-y-3">
+      <p className="text-xs font-bold text-text">{verb} now — name each field, then its value:</p>
+
+      <div className="space-y-1.5">
+        <div className="text-[10px] uppercase font-bold text-textSubtle tracking-wider flex items-center gap-1">
+          <User className="w-3 h-3 text-teal-500" /> Patient
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {PATIENT_FIELDS.map((f) => (
+            <FieldChip key={f.label} {...f} />
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <div className="text-[10px] uppercase font-bold text-textSubtle tracking-wider flex items-center gap-1">
+          <Pill className="w-3 h-3 text-teal-500" /> Medicine — repeat for each one
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {MEDICINE_FIELDS.map((f) => (
+            <FieldChip key={f.label} {...f} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Shown while the input is being turned into fields: names every field that is being read. */
+function ProcessingFields({ stage }: { stage: ProcessingStage }) {
+  const transcribing = stage === 'transcribing';
+  const labels = [...PATIENT_FIELDS.map((f) => f.label), ...MEDICINE_FIELDS.map((f) => f.label)];
+
+  return (
+    <div className="rounded-xl bg-teal-500/10 border border-teal-500/30 p-3.5 space-y-3" aria-live="polite">
+      <div className="space-y-1.5 text-xs font-semibold">
+        {stage !== null && (
+          <>
+            <div className="flex items-center gap-2 text-teal-700 dark:text-teal-300">
+              {transcribing ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+              ) : (
+                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+              )}
+              <span>{transcribing ? 'Transcribing what you said' : 'Input received'}</span>
+            </div>
+            <div
+              className={`flex items-center gap-2 ${
+                transcribing ? 'text-textSubtle' : 'text-teal-700 dark:text-teal-300'
+              }`}
+            >
+              {transcribing ? (
+                <span className="w-3.5 h-3.5 rounded-full border border-cardBorder shrink-0" />
+              ) : (
+                <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+              )}
+              <span>Reading each field</span>
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        {labels.map((label) => (
+          <span
+            key={label}
+            className={`px-2 py-1 rounded-md border text-[11px] font-semibold ${
+              transcribing
+                ? 'border-cardBorder text-textSubtle bg-background/60'
+                : 'border-teal-500/40 text-teal-700 dark:text-teal-300 bg-background/60 animate-pulse'
+            }`}
+          >
+            {label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** What was actually heard, field by field, with the medicine column names. */
+function ExtractedFields({ extraction }: { extraction: ExtractionSummary }) {
+  return (
+    <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/30 p-3.5 space-y-3">
+      <div className="text-xs font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
+        <CheckCircle2 className="w-4 h-4" /> Extracted fields
+      </div>
+
+      {extraction.patient.length > 0 ? (
+        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+          {extraction.patient.map((f) => (
+            <React.Fragment key={f.label}>
+              <dt className="text-textMuted font-semibold">{f.label}</dt>
+              <dd className="text-text font-bold break-words">{f.value}</dd>
+            </React.Fragment>
+          ))}
+        </dl>
+      ) : (
+        <p className="text-[11px] text-textMuted">No patient fields heard.</p>
+      )}
+
+      {extraction.medicines.length > 0 ? (
+        extraction.medicines.map((med, i) => (
+          <div key={i} className="rounded-lg bg-background/70 border border-cardBorder p-2.5 space-y-1">
+            <div className="text-[10px] uppercase font-bold text-textSubtle tracking-wider">Medicine {i + 1}</div>
+            <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs">
+              {MEDICINE_FIELDS.map((f) => (
+                <React.Fragment key={f.label}>
+                  <dt className="text-textMuted font-semibold">{f.label}</dt>
+                  <dd className={med[f.label] ? 'text-text font-bold break-words' : 'text-textSubtle'}>
+                    {med[f.label] || '— not heard'}
+                  </dd>
+                </React.Fragment>
+              ))}
+            </dl>
+          </div>
+        ))
+      ) : (
+        <p className="text-[11px] text-textMuted">
+          No medicines heard — say &ldquo;medicine&rdquo; followed by the name.
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function PrescriptionRecordingPanel({
   recordingState,
   durationSeconds,
   volumeLevel,
   isProcessing,
   processingStatus,
+  processingStage,
+  extraction,
   errorMessage,
   lastTranscript,
   onMicPress,
@@ -54,8 +230,14 @@ export function PrescriptionRecordingPanel({
   const [textInput, setTextInput] = useState('');
   const [mode, setMode] = useState<'voice' | 'text'>('voice');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
   const isRecording = recordingState === 'Recording';
+
+  // Manual entry: put the cursor in the text field straight away.
+  useEffect(() => {
+    if (mode === 'text') textAreaRef.current?.focus();
+  }, [mode]);
 
   const handleCopyTranscript = async () => {
     if (!lastTranscript) return;
@@ -97,7 +279,7 @@ export function PrescriptionRecordingPanel({
           {(
             [
               { id: 'voice', label: 'Dictate', icon: Mic },
-              { id: 'text', label: 'Type / Paste', icon: FileText },
+              { id: 'text', label: 'Manual entry', icon: FileText },
             ] as const
           ).map(({ id, label, icon: Icon }) => (
             <button
@@ -164,14 +346,11 @@ export function PrescriptionRecordingPanel({
                     ? processingStatus || 'Working on it…'
                     : 'Dictate the consultation'}
                 </div>
-                <p className="text-[11px] text-textMuted leading-relaxed">
-                  {isRecording
-                    ? 'Patient details, diagnosis, then each medicine with dose, frequency and days.'
-                    : 'You can dictate more than once — new medicines are added to the list.'}
-                </p>
                 {isRecording && <AudioVisualizer isRecording={isRecording} volumeLevel={volumeLevel} />}
               </div>
             </div>
+
+            {isProcessing ? <ProcessingFields stage={processingStage} /> : <FieldGuide verb="Say" />}
 
             <div
               onDragOver={(e) => {
@@ -217,10 +396,12 @@ export function PrescriptionRecordingPanel({
           </>
         ) : (
           <form onSubmit={handleTextSubmit} className="space-y-3">
+            <FieldGuide verb="Type" />
             <textarea
+              ref={textAreaRef}
               value={textInput}
               onChange={(e) => setTextInput(e.target.value)}
-              placeholder="Patient Ananya Sharma, 29 female, phone 9845012345. Diagnosis viral pharyngitis. Augmentin 625 twice daily after food for 5 days, Dolo 650 thrice daily for 3 days."
+              aria-label="Prescription text"
               rows={7}
               className="w-full p-3 rounded-xl bg-background border border-cardBorder text-xs text-text focus:outline-none focus:border-teal-500 leading-relaxed resize-none"
             />
@@ -241,14 +422,8 @@ export function PrescriptionRecordingPanel({
                 </>
               )}
             </button>
+            {isProcessing && <ProcessingFields stage={processingStage} />}
           </form>
-        )}
-
-        {isProcessing && mode === 'voice' && (
-          <div className="p-3 rounded-xl bg-teal-500/10 border border-teal-500/30 text-teal-700 dark:text-teal-300 text-xs font-semibold flex items-center gap-2">
-            <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-            <span>{processingStatus || 'Working on it…'}</span>
-          </div>
         )}
 
         {errorMessage && (
@@ -260,6 +435,8 @@ export function PrescriptionRecordingPanel({
             <span>{errorMessage}</span>
           </div>
         )}
+
+        {!isProcessing && extraction && <ExtractedFields extraction={extraction} />}
 
         {lastTranscript && (
           <div className="p-3.5 rounded-xl bg-surface/60 border border-cardBorder space-y-1.5">

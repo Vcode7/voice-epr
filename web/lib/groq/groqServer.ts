@@ -19,6 +19,7 @@ import {
 import { dbSettings } from '../db/models';
 import { normalizeAndAutoFillTemplateData } from '../utils/autoFillHelper';
 import { normalizeDateToDDMMYYYY, isDateField, getTodayString } from '../utils/dateUtils';
+import { parseLabelledPrescription, normalizeFrequency } from '../utils/prescriptionParser';
 
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_AUDIO_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
@@ -1447,6 +1448,54 @@ TASK:
     transcript: string,
     customKey?: string | null
   ): Promise<ExtractedPrescriptionResult> {
+    const base = await this.extractDoctorPrescriptionBase(transcript, customKey);
+    return this.applySpokenLabels(base, transcript);
+  }
+
+  /**
+   * When the doctor dictates with labels ("diagnosis headache, medicine Dolo, frequency 101"), the
+   * labelled values are authoritative: each lands only in its own field and nothing is merged into
+   * Diagnosis. Fields the labels do not cover keep the AI / heuristic result.
+   */
+  private static applySpokenLabels(
+    base: ExtractedPrescriptionResult,
+    transcript: string
+  ): ExtractedPrescriptionResult {
+    const labelled = parseLabelledPrescription(transcript);
+    const result: ExtractedPrescriptionResult = { ...base };
+
+    if (labelled.hasLabels) {
+      if (labelled.patientName) result.patient_name = labelled.patientName;
+      if (labelled.age) result.age = labelled.age;
+      if (labelled.gender) result.gender = labelled.gender;
+      if (labelled.phone) result.phone = labelled.phone;
+      if (labelled.diagnosis) result.diagnosis = labelled.diagnosis;
+      if (labelled.notes) result.notes = labelled.notes;
+
+      if (labelled.medicines.length > 0) {
+        result.medicines = labelled.medicines.map((m) => ({
+          name: m.name,
+          dosage: m.dosage,
+          timing: m.timing || 'AF',
+          frequency: m.frequency,
+          duration: m.duration,
+          instructions: m.instructions,
+        }));
+      }
+    }
+
+    // Frequency is stored as typed digits joined by hyphens ("101" -> "1-0-1"); other text is kept.
+    result.medicines = (result.medicines || []).map((m) => ({
+      ...m,
+      frequency: normalizeFrequency(m.frequency || ''),
+    }));
+    return result;
+  }
+
+  private static async extractDoctorPrescriptionBase(
+    transcript: string,
+    customKey?: string | null
+  ): Promise<ExtractedPrescriptionResult> {
     const keys = await this.getAllKeys(customKey);
     if (keys.length === 0) {
       return this.localHeuristicPrescriptionParser(transcript);
@@ -1455,7 +1504,14 @@ TASK:
     const systemPrompt = `You are an expert Medical AI Entity Extractor & Doctor's Prescription Assistant.
 The input provided to you is a Doctor's Prescription / Medical Prescription (spoken dictation, consultation notes, or prescription summary).
 
-Extract patient details, doctor & clinic information, clinical diagnosis/notes, and ALL prescribed medicines into a valid JSON object.
+Extract patient details, the clinical diagnosis/notes, and ALL prescribed medicines into a valid JSON object.
+Do NOT extract doctor or clinic details.
+
+FIELD SEPARATION RULES (critical):
+- The speaker may use spoken labels such as "diagnosis ...", "medicine ...", "dosage ...", "frequency ...", "duration ...". Each label starts a NEW field and the value ends where the next label starts.
+- "diagnosis" holds ONLY the condition/complaint (e.g. "headache"). NEVER put medicine names, doses, frequencies or durations in it.
+- Medicine names go ONLY in medicines[].name. Filler like "and continue", "next", "that's all" is not data - ignore it.
+- "frequency" is copied as spoken. If it is dictated as digits (e.g. "101" or "1 0 1") return the digits joined by hyphens ("1-0-1"). Do not reject or reinterpret any format.
 
 TOP-LEVEL FIELDS:
 - "patient_name": Patient's full name (e.g. "John Doe", "Ananya Sharma")
@@ -1464,9 +1520,6 @@ TOP-LEVEL FIELDS:
 - "phone": 10-15 digit phone number (e.g. "+91 9876543210")
 - "email": Email address (e.g. "patient@example.com")
 - "date": Date of prescription formatted strictly as DD-MM-YYYY (e.g. "02-09-2026"). If not mentioned, use today's date.
-- "doctor_name": Doctor's full name & degrees (e.g. "Dr. Sarah Jenkins, MD")
-- "doctor_specialty": Doctor specialty (e.g. "Senior Consultant Physician")
-- "clinic_details": Clinic/Hospital name, address, or details (e.g. "City Care Health Clinic")
 - "diagnosis": Clinical diagnosis, symptoms, or chief complaint (e.g. "Acute Upper Respiratory Tract Infection")
 - "notes": Doctor advice, precautions, follow-up instructions, diet advice (e.g. "Drink warm water, take rest, review in 5 days")
 
@@ -1475,7 +1528,7 @@ For EVERY medicine mentioned or implied in the prescription, create an object wi
 - "name": Medicine brand/generic name and formulation (e.g. "Augmentin 625 Duo Tablet", "Paracetamol 650mg", "Pan-D Capsule")
 - "dosage": Dosage strength or quantity per dose (e.g. "625 mg", "1 Tablet", "10 ml", "1 Capsule")
 - "timing": Must be "AF" (After Food / After Meals) or "BF" (Before Food / Empty Stomach). (If antacid/PPI like Pantoprazole/Omeprazole -> "BF"; for analgesics/antibiotics -> "AF")
-- "frequency": Dosing frequency (e.g. "1-0-1", "1-1-1", "1-0-0", "0-0-1", "Twice daily", "Once daily", "SOS / As needed")
+- "frequency": Dosing frequency exactly as spoken (e.g. "1-0-1", "1-1-1", "1-0-0", "0-0-1", "Twice daily", "SOS"). Digits dictated without hyphens get hyphens between them.
 - "duration": Duration of treatment (e.g. "5 days", "3 days", "1 week", "10 days")
 - "instructions": Specific instructions if mentioned (e.g. "Take with warm water after dinner")
 
@@ -1488,9 +1541,6 @@ Return ONLY a valid raw JSON object matching:
   "phone": "...",
   "email": "...",
   "date": "DD-MM-YYYY",
-  "doctor_name": "...",
-  "doctor_specialty": "...",
-  "clinic_details": "...",
   "diagnosis": "...",
   "notes": "...",
   "medicines": [
@@ -1618,27 +1668,7 @@ Return ONLY a valid raw JSON object matching:
       email = emailMatch[0].trim();
     }
 
-    // 6. Doctor Name
-    let doctorName: string | null = null;
-    const docMatch = text.match(/(?:doctor|dr\.)\s+(?:dr\.\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
-    if (docMatch) {
-      const docClean = docMatch[1].trim().replace(/^dr\.?\s+/i, '');
-      doctorName = `Dr. ${docClean}`;
-    }
-
-    // 7. Clinic / Hospital Details
-    let clinicDetails: string | null = null;
-    const clinicMatch = text.match(/(?:at|clinic|hospital|center)\s+([A-Z][a-zA-Z\s]+(?:Hospital|Clinic|Care|Healthcare|Center|Polyclinic))/i);
-    if (clinicMatch) {
-      clinicDetails = clinicMatch[0].trim().replace(/^(?:at|in)\s+/i, '');
-    } else {
-      const namedClinic = text.match(
-        /\b((?:[A-Z][\w&'.-]*\s+)+(?:Hospital|Clinic|Healthcare|Polyclinic|Health Centre|Health Center|Medical Centre|Medical Center))\b/
-      );
-      if (namedClinic) clinicDetails = namedClinic[1].trim();
-    }
-
-    // 8. Diagnosis
+    // 6. Diagnosis (stops at the first comma / full stop so the medicines are never pulled in)
     let diagnosis: string | null = null;
     const diagMatch = text.match(/(?:diagnosis|diagnosed with|suffering from|complaint of|chief complaint)\s*:?\s*([^,.;]+)/i);
     if (diagMatch) {
@@ -1726,8 +1756,6 @@ Return ONLY a valid raw JSON object matching:
       phone: phone,
       email: email,
       date: getTodayString(),
-      doctor_name: doctorName,
-      clinic_details: clinicDetails,
       diagnosis: diagnosis,
       notes: null,
       medicines,

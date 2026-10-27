@@ -32,8 +32,7 @@ function buildEmailHtml(rx: DoctorPrescription): string {
   return `
     <div style="font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:0 auto;color:#0f172a;">
       <div style="background:#0f766e;color:#fff;padding:18px 20px;border-radius:12px 12px 0 0;">
-        <div style="font-size:18px;font-weight:bold;">${esc(rx.clinicDetails) || 'Medical Prescription'}</div>
-        ${rx.doctorName ? `<div style="font-size:13px;opacity:.9;margin-top:4px;">${esc(rx.doctorName)}${rx.doctorSpecialty ? ` &middot; ${esc(rx.doctorSpecialty)}` : ''}</div>` : ''}
+        <div style="font-size:18px;font-weight:bold;">Medical Prescription</div>
       </div>
       <div style="border:1px solid #e2e8f0;border-top:none;padding:18px 20px;border-radius:0 0 12px 12px;">
         <p style="margin:0 0 4px;"><strong>Patient:</strong> ${esc(rx.patientName)}${rx.age ? ` (${esc(rx.age)}${rx.gender ? `, ${esc(rx.gender)}` : ''})` : ''}</p>

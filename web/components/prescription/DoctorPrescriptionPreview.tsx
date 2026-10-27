@@ -7,7 +7,6 @@ import {
   User,
   Phone,
   Mail,
-  Building2,
   Clock,
   FileText,
   QrCode,
@@ -27,12 +26,6 @@ export function DoctorPrescriptionPreview({ prescription }: DoctorPrescriptionPr
   const phone = prescription.phone || '';
   const email = prescription.email || '';
   const date = prescription.date || '';
-  const doctorName = prescription.doctorName || '';
-  const doctorSpecialty = prescription.doctorSpecialty || '';
-  const doctorRegNo = prescription.doctorRegNo || '';
-  const clinicDetails = prescription.clinicDetails || 'Medical Prescription';
-  const clinicAddress = prescription.clinicAddress || '';
-  const clinicPhone = prescription.clinicPhone || '';
   const diagnosis = prescription.diagnosis || '';
   const notes = prescription.notes || '';
   const medicines = prescription.medicines || [];
@@ -49,34 +42,10 @@ export function DoctorPrescriptionPreview({ prescription }: DoctorPrescriptionPr
             </div>
             <div>
               <h2 className="text-lg sm:text-xl font-extrabold tracking-tight text-white leading-tight">
-                {clinicDetails}
+                Medical Prescription
               </h2>
-              {clinicAddress && <p className="text-xs text-emerald-100/80 mt-0.5">{clinicAddress}</p>}
-              {clinicPhone && (
-                <div className="text-[11px] text-emerald-200 mt-1">
-                  <span>Contact: {clinicPhone}</span>
-                </div>
-              )}
             </div>
           </div>
-
-          {(doctorName || doctorSpecialty || doctorRegNo) && (
-            <div className="sm:text-right border-t sm:border-t-0 pt-2 sm:pt-0 border-white/15">
-              {doctorName && (
-                <div className="text-sm sm:text-base font-bold text-white tracking-tight">
-                  {doctorName}
-                </div>
-              )}
-              {doctorSpecialty && (
-                <div className="text-xs text-emerald-200 font-medium">{doctorSpecialty}</div>
-              )}
-              {doctorRegNo && (
-                <div className="text-[10px] text-emerald-100/70 font-mono mt-0.5">
-                  Reg. No: {doctorRegNo}
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </div>
 
@@ -238,12 +207,8 @@ export function DoctorPrescriptionPreview({ prescription }: DoctorPrescriptionPr
           </div>
 
           <div className="text-right shrink-0 min-w-[160px]">
-            <div className="h-8 border-b border-neutral-400 flex items-end justify-end pb-0.5">
-              <span className="font-serif italic text-teal-900 text-xs opacity-70">
-                {doctorName ? doctorName.replace(/^Dr\.\s*/i, '') : 'Doctor Sign'}
-              </span>
-            </div>
-            <div className="text-xs font-bold text-neutral-800 mt-1">{doctorName || 'Doctor Signature'}</div>
+            <div className="h-8 border-b border-neutral-400" />
+            <div className="text-xs font-bold text-neutral-800 mt-1">Doctor Signature</div>
           </div>
         </div>
       </div>

@@ -7,10 +7,6 @@ export function buildPrescriptionText(rx: Partial<DoctorPrescription>): string {
   const who = [rx.age, rx.gender].filter(Boolean).join(', ');
 
   lines.push(`*Prescription${rx.prescriptionNumber ? ` ${rx.prescriptionNumber}` : ''}*`);
-  if (rx.clinicDetails) lines.push(rx.clinicDetails);
-  if (rx.doctorName) {
-    lines.push([rx.doctorName, rx.doctorSpecialty].filter(Boolean).join(' - '));
-  }
   lines.push('');
   lines.push(`Patient: ${rx.patientName || '-'}${who ? ` (${who})` : ''}`);
   if (rx.date) lines.push(`Date: ${formatDateDisplay(rx.date)}`);

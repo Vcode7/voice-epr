@@ -355,12 +355,6 @@ export interface DoctorPrescription {
   phone: string;
   email: string;
   date: string;
-  doctorName: string;
-  doctorSpecialty?: string;
-  doctorRegNo?: string;
-  clinicDetails: string;
-  clinicAddress?: string;
-  clinicPhone?: string;
   diagnosis?: string;
   notes?: string;
   medicines: PrescriptionMedicine[];
@@ -376,9 +370,6 @@ export interface ExtractedPrescriptionResult {
   phone?: string | null;
   email?: string | null;
   date?: string | null;
-  doctor_name?: string | null;
-  doctor_specialty?: string | null;
-  clinic_details?: string | null;
   diagnosis?: string | null;
   notes?: string | null;
   medicines?: Array<{

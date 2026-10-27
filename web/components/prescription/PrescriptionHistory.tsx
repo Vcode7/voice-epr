@@ -20,7 +20,7 @@ export function PrescriptionHistory({ records, loading, activeId, onOpen, onDele
   const filtered = !q
     ? records
     : records.filter((r) =>
-        [r.patientName, r.phone, r.doctorName, r.prescriptionNumber, r.diagnosis]
+        [r.patientName, r.phone, r.prescriptionNumber, r.diagnosis]
           .some((v) => (v || '').toLowerCase().includes(q)) ||
         (r.medicines || []).some((m) => (m.name || '').toLowerCase().includes(q))
       );
@@ -33,7 +33,7 @@ export function PrescriptionHistory({ records, loading, activeId, onOpen, onDele
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search patient, phone, doctor, Rx no. or medicine…"
+          placeholder="Search patient, phone, diagnosis, Rx no. or medicine…"
           className="w-full pl-10 pr-3 py-2.5 rounded-xl bg-card border border-cardBorder text-xs text-text focus:outline-none focus:border-teal-500"
         />
       </div>
@@ -67,7 +67,6 @@ export function PrescriptionHistory({ records, loading, activeId, onOpen, onDele
                   </div>
                   <div className="flex items-center gap-x-2 mt-1 flex-wrap text-[11px] text-textSubtle">
                     <span>{formatDateDisplay(rx.date)}</span>
-                    {rx.doctorName && <span>· {rx.doctorName}</span>}
                     {rx.phone && <span>· {rx.phone}</span>}
                   </div>
                 </div>

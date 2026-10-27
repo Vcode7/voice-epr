@@ -9,12 +9,12 @@ import {
   Plus,
   Trash2,
   User,
-  Building2,
   Pill,
   FilePlus2,
   Loader2,
 } from 'lucide-react';
 import { DoctorPrescription, PrescriptionMedicine } from '@/types';
+import { normalizeFrequency } from '@/lib/utils/prescriptionParser';
 
 interface PrescriptionActiveViewProps {
   prescription: Partial<DoctorPrescription>;
@@ -201,31 +201,6 @@ export function PrescriptionActiveView({
           </div>
         </section>
 
-        {/* Doctor & clinic */}
-        <section className="space-y-3">
-          <SectionTitle icon={Building2} title="Doctor & clinic" />
-          <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
-            <Field label="Doctor name" className="col-span-2 sm:col-span-2">
-              <input type="text" {...bind('doctorName')} placeholder="Dr. Sarah Jenkins, MD" className={inputClass} />
-            </Field>
-            <Field label="Specialty" className="col-span-2 sm:col-span-2">
-              <input type="text" {...bind('doctorSpecialty')} placeholder="General Physician" className={inputClass} />
-            </Field>
-            <Field label="Registration no." className="col-span-2 sm:col-span-2">
-              <input type="text" {...bind('doctorRegNo')} placeholder="e.g. MMC 12345" className={inputClass} />
-            </Field>
-            <Field label="Clinic / hospital" className="col-span-2 sm:col-span-3">
-              <input type="text" {...bind('clinicDetails')} placeholder="City Care Health Clinic" className={inputClass} />
-            </Field>
-            <Field label="Clinic address" className="col-span-2 sm:col-span-2">
-              <input type="text" {...bind('clinicAddress')} placeholder="45 Medical Enclave" className={inputClass} />
-            </Field>
-            <Field label="Clinic phone" className="col-span-2 sm:col-span-1">
-              <input type="tel" {...bind('clinicPhone')} placeholder="Phone" className={inputClass} />
-            </Field>
-          </div>
-        </section>
-
         {/* Medicines */}
         <section className="space-y-3">
           <SectionTitle
@@ -295,7 +270,8 @@ export function PrescriptionActiveView({
                           type="text"
                           value={med.frequency}
                           onChange={(e) => onUpdateMedicine(index, 'frequency', e.target.value)}
-                          placeholder="1-0-1"
+                          onBlur={(e) => onUpdateMedicine(index, 'frequency', normalizeFrequency(e.target.value))}
+                          placeholder="e.g. 101"
                           className={`${inputClass} font-mono`}
                         />
                       </Field>
