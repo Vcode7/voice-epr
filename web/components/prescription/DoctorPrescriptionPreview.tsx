@@ -1,19 +1,9 @@
 'use client';
 
 import React from 'react';
-import {
-  Stethoscope,
-  Calendar,
-  User,
-  Phone,
-  Mail,
-  Clock,
-  FileText,
-  QrCode,
-  ShieldCheck,
-  Pill,
-} from 'lucide-react';
+import { FileText, QrCode } from 'lucide-react';
 import { DoctorPrescription } from '@/types';
+import { CLINIC, CLINIC_GREEN } from '@/lib/clinic';
 import { formatDateDisplay } from '@/lib/utils/dateUtils';
 
 interface DoctorPrescriptionPreviewProps {
@@ -33,19 +23,33 @@ export function DoctorPrescriptionPreview({ prescription }: DoctorPrescriptionPr
 
   return (
     <div className="w-full bg-white text-neutral-900 rounded-2xl border-2 border-neutral-300 shadow-xl overflow-hidden font-sans printable-area select-text">
-      {/* 1. CLINIC / HOSPITAL HEADER */}
-      <div className="bg-gradient-to-r from-emerald-800 via-teal-900 to-cyan-900 text-white p-5 sm:p-6 relative overflow-hidden">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
-          <div className="flex items-start space-x-3.5">
-            <div className="w-11 h-11 rounded-xl bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center shrink-0 shadow-md">
-              <Stethoscope className="w-6 h-6 text-emerald-300" />
+      {/* 1. CLINIC LETTERHEAD (mirrors the printed prescription pad) */}
+      <div className="px-5 pt-5 sm:px-8 sm:pt-6 bg-white" style={{ color: CLINIC_GREEN }}>
+        <div className="text-center">
+          <h2 className="font-serif font-black tracking-[0.12em] text-3xl sm:text-4xl leading-none">
+            {CLINIC.name}
+          </h2>
+          <p className="mt-2 text-[11px] sm:text-sm font-semibold">{CLINIC.address}</p>
+        </div>
+
+        <div className="mt-3 flex items-end justify-between gap-4">
+          <div>
+            <div className="font-serif italic font-bold text-lg sm:text-xl leading-tight">
+              {CLINIC.doctorName}
             </div>
-            <div>
-              <h2 className="text-lg sm:text-xl font-extrabold tracking-tight text-white leading-tight">
-                Medical Prescription
-              </h2>
-            </div>
+            <div className="text-[11px] sm:text-xs font-bold tracking-wide">{CLINIC.qualifications}</div>
+            <div className="text-[10px] sm:text-xs font-extrabold tracking-wide">{CLINIC.designation}</div>
           </div>
+          <div className="text-right">
+            <div className="text-xs sm:text-sm font-extrabold">Regd. No. {CLINIC.registrationNo}</div>
+            <div className="font-serif italic text-[11px] sm:text-sm font-semibold">{CLINIC.tagline}</div>
+          </div>
+        </div>
+
+        <div className="mt-2 h-[2px]" style={{ backgroundColor: CLINIC_GREEN }} />
+        <div className="flex justify-between pt-1 pb-2 text-xs font-bold italic">
+          <span>Ref.</span>
+          <span>Date : {date ? formatDateDisplay(date) : '.........................'}</span>
         </div>
       </div>
 
@@ -208,7 +212,8 @@ export function DoctorPrescriptionPreview({ prescription }: DoctorPrescriptionPr
 
           <div className="text-right shrink-0 min-w-[160px]">
             <div className="h-8 border-b border-neutral-400" />
-            <div className="text-xs font-bold text-neutral-800 mt-1">Doctor Signature</div>
+            <div className="text-xs font-bold text-neutral-800 mt-1">{CLINIC.doctorName}</div>
+            <div className="text-[10px] text-neutral-500">Regd. No. {CLINIC.registrationNo}</div>
           </div>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { DoctorPrescription } from '@/types';
+import { CLINIC, CLINIC_GREEN } from '@/lib/clinic';
 
 const esc = (v: unknown): string =>
   String(v ?? '')
@@ -31,8 +32,21 @@ function buildEmailHtml(rx: DoctorPrescription): string {
 
   return `
     <div style="font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:0 auto;color:#0f172a;">
-      <div style="background:#0f766e;color:#fff;padding:18px 20px;border-radius:12px 12px 0 0;">
-        <div style="font-size:18px;font-weight:bold;">Medical Prescription</div>
+      <div style="color:${CLINIC_GREEN};padding:18px 20px 0;border:1px solid #e2e8f0;border-bottom:none;border-radius:12px 12px 0 0;">
+        <div style="text-align:center;font-family:Georgia,serif;font-size:28px;font-weight:bold;letter-spacing:2px;">${esc(CLINIC.name)}</div>
+        <div style="text-align:center;font-size:12px;font-weight:bold;margin-top:4px;">${esc(CLINIC.address)}</div>
+        <table style="width:100%;margin-top:10px;border-collapse:collapse;"><tr>
+          <td style="vertical-align:bottom;">
+            <div style="font-family:Georgia,serif;font-style:italic;font-weight:bold;font-size:16px;">${esc(CLINIC.doctorName)}</div>
+            <div style="font-size:11px;font-weight:bold;">${esc(CLINIC.qualifications)}</div>
+            <div style="font-size:11px;font-weight:bold;">${esc(CLINIC.designation)}</div>
+          </td>
+          <td style="vertical-align:bottom;text-align:right;">
+            <div style="font-size:12px;font-weight:bold;">Regd. No. ${esc(CLINIC.registrationNo)}</div>
+            <div style="font-family:Georgia,serif;font-style:italic;font-size:12px;">${esc(CLINIC.tagline)}</div>
+          </td>
+        </tr></table>
+        <div style="height:2px;background:${CLINIC_GREEN};margin-top:8px;"></div>
       </div>
       <div style="border:1px solid #e2e8f0;border-top:none;padding:18px 20px;border-radius:0 0 12px 12px;">
         <p style="margin:0 0 4px;"><strong>Patient:</strong> ${esc(rx.patientName)}${rx.age ? ` (${esc(rx.age)}${rx.gender ? `, ${esc(rx.gender)}` : ''})` : ''}</p>

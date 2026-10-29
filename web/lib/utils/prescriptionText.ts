@@ -1,11 +1,16 @@
 import { DoctorPrescription } from '@/types';
 import { formatDateDisplay } from '@/lib/utils/dateUtils';
+import { CLINIC } from '@/lib/clinic';
 
 /** Plain-text prescription, formatted for WhatsApp (*bold*) and as a mailto body. */
 export function buildPrescriptionText(rx: Partial<DoctorPrescription>): string {
   const lines: string[] = [];
   const who = [rx.age, rx.gender].filter(Boolean).join(', ');
 
+  lines.push(`*${CLINIC.name}*`);
+  lines.push(`${CLINIC.doctorName}, ${CLINIC.qualifications} (Regd. No. ${CLINIC.registrationNo})`);
+  lines.push(CLINIC.address);
+  lines.push('');
   lines.push(`*Prescription${rx.prescriptionNumber ? ` ${rx.prescriptionNumber}` : ''}*`);
   lines.push('');
   lines.push(`Patient: ${rx.patientName || '-'}${who ? ` (${who})` : ''}`);
